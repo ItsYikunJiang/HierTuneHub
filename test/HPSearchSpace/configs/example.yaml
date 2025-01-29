@@ -1,0 +1,20 @@
+---
+estimators:
+  sklearn.ensemble.RandomForestRegressor:  # estimator full name
+    n_estimators:
+      range: [10, 100]
+      sampler: "uniformint"
+      default: 10  # default value, optional
+    max_depth:
+      range: [1, 10]
+      sampler: "uniformint"
+      default: 5  # default value, optional
+  sklearn.linear_model.LogisticRegression:
+    C:
+      range: [0.1, 1.0]
+      sampler: "uniform"
+      default: 1.0
+    penalty:
+      values: ["l1", "l2", "elasticnet"]
+      sampler: "choice"
+      default: "l2"
