@@ -1,20 +1,35 @@
 ---
 estimators:
-  sklearn.ensemble.RandomForestRegressor:  # estimator full name
-    n_estimators:
-      range: [10, 100]
-      sampler: "uniformint"
-      default: 10  # default value, optional
-    max_depth:
-      range: [1, 10]
-      sampler: "uniformint"
-      default: 5  # default value, optional
-  sklearn.linear_model.LogisticRegression:
-    C:
-      range: [0.1, 1.0]
-      sampler: "uniform"
-      default: 1.0
-    penalty:
-      values: ["l1", "l2", "elasticnet"]
+  sklearn.svm.SVC: # estimator full name
+    C: # hyperparameter name
+      range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
+      # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
+      sampler: "loguniform"  # sampler type
+      default: 1.0  # default value, optional
+    kernel:
+      values: [ "linear" ]  # categorical choices
       sampler: "choice"
-      default: "l2"
+      default: "linear"
+  sklearn.ensemble.RandomForestClassifier:
+    n_estimators:
+      range: [ 10, 1000 ]
+      sampler: "uniformint"
+      default: 10
+    max_depth:
+      range: [ 2, 32 ]
+      sampler: "uniformint"
+      default: 5
+  sklearn.ensemble.GradientBoostingClassifier:
+    n_estimators:
+      range: [ 10, 1000 ]
+      sampler: "uniformint"
+      default: 10
+    max_depth:
+      range: [ 2, 32 ]
+      sampler: "uniformint"
+      default: 5
+  sklearn.neighbors.KNeighborsClassifier:
+    n_neighbors:
+      range: [ 2, 10 ]
+      sampler: "uniformint"
+      default: 5
