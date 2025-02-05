@@ -1,18 +1,21 @@
-from typing import Self, SupportsFloat, Any
+from .utils import convert_to_hyperopt_space, suggest_classifier, get_flaml_sampler, get_estimator_class
+
+from typing import Self, SupportsFloat
 
 import yaml
-import flaml
+import flaml.tune
+from optuna import Trial
 
-from utils import convert_to_hyperopt_space
-from utils import suggest_classifier
 
 class SearchSpace:
     """
     The class for defining the search space for hyperparameter optimization.
     """
+
     def __init__(self,
+                 config_file: str = None,
                  config: dict[str, dict[str, dict[str, dict[str, list | str | SupportsFloat]]]] = None,
-                 config_file: str = None):
+                 ):
         """
         Initialize the search space. You can either provide the configuration as a dictionary or as a YAML file.
         The input configuration should resemble certain structure. See example.yaml for an example.
@@ -30,40 +33,51 @@ class SearchSpace:
             with open(config_file, 'r') as stream:
                 self.config = yaml.safe_load(stream)
 
+        self._parse_config()
+
+    def _parse_config(self):
+        for estimator_group_name, estimators_dict in self.config.items():
+            for estimator_name, params_dict in estimators_dict.items():
+                for params_name, params_config in params_dict.items():
+                    if "values" in params_config.keys() and "range" in params_config.keys():
+                        raise ValueError("Both values and range cannot be provided for a parameter")
+                    if "values" not in params_config.keys() and "range" not in params_config.keys():
+                        raise ValueError("Either values or range must be provided for a parameter")
+
+                    if "values" in params_config.keys():
+                        params_config['args'] = params_config.pop('values')
+                        params_config['sampler'] = "choice"
+                    elif "range" in params_config.keys():
+                        params_config['args'] = params_config.pop('range')
+
     def get_hyperopt_space(self) -> dict:
         """
         :return: A dictionary that defines the search space for hyperopt.
         """
         return convert_to_hyperopt_space(self.config)
-        ...
 
-    def get_optuna_space(self,trial_):
-        # TODO: How to implement this? Optuna does not explicitly define a search space.
-        return suggest_classifier(trial_,self.config)
-        ...
+    def get_optuna_space(self, trial_: Trial) -> dict:
+        return suggest_classifier(trial_, self.config)
 
     def get_flaml_space(self) -> dict:
         config = self.config.copy()
 
         out = dict()
 
-        for key, estimators in config.items():
+        for estimator_group_name, estimators_dict in config.items():
             space = list()
 
-            for estimator_name, params in estimators.items():
+            for estimator_name, params_dict in estimators_dict.items():
                 params_space = dict()
 
-                for params_key, params_dict in params.items():
-                    if "values" in params_dict.keys():
-                        params_space[params_key] = flaml.tune.choice(params_dict["values"])
-                    elif "range" in params_dict.keys():
-                        params_space[params_key] = self._get_flaml_range(params_dict["range"], params_dict["sampler"])
+                for params_key, params_config in params_dict.items():
+                    params_space[params_key] = get_flaml_sampler(params_config['args'], params_config["sampler"])
 
-                single_space = {**params_space, "estimator_name": estimator_name,
-                                "estimator_class": self._get_estimator_class(estimator_name)}
+                single_space = {"params": params_space, "estimator_name": estimator_name,
+                                "estimator_class": get_estimator_class(estimator_name)}
                 space.append(single_space)
 
-            out[key] = flaml.tune.choice(space)
+            out[estimator_group_name] = flaml.tune.choice(space)
         return out
 
     def select(self, estimator_list: dict[str, list]) -> Self:
@@ -77,32 +91,3 @@ class SearchSpace:
     def join(self, other_search_space: Self) -> Self:
         self.config = {**self.config, **other_search_space.config}
         return self
-
-    @staticmethod
-    def _get_flaml_range(range_, sampler):
-        match sampler:
-            case "uniform":
-                return flaml.tune.uniform(*range_)
-            case "loguniform":
-                return flaml.tune.loguniform(*range_)
-            case "quniform":
-                return flaml.tune.quniform(*range_)
-            case "qloguniform":
-                return flaml.tune.qloguniform(*range_)
-            case "uniformint":
-                return flaml.tune.randint(*range_)
-            case "quniformint":
-                return flaml.tune.qrandint(*range_)
-            case "loguniformint":
-                return flaml.tune.lograndint(*range_)
-            case "qloguniformint":
-                return flaml.tune.qlograndint(*range_)
-            case _:
-                raise ValueError(f"Sampler {sampler} not supported")
-
-    @staticmethod
-    def _get_estimator_class(estimator_name: str) -> Any:
-        package = estimator_name.rsplit(".", 1)[0]
-        exec(f"import {package}")
-        return eval(estimator_name)
-
