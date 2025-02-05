@@ -1,9 +1,11 @@
 from typing import Any
 
 import flaml.tune
+import flaml.tune.sample
+import hyperopt.pyll
 from hyperopt import hp
 from hyperopt.pyll import scope
-from optuna import Trial
+import optuna
 
 
 def convert_to_hyperopt_space(param_dict: dict) -> dict:
@@ -32,13 +34,13 @@ def convert_to_hyperopt_space(param_dict: dict) -> dict:
     return out
 
 
-def suggest_classifier(trial_: Trial, param_config: dict) -> dict:
+def suggest_classifier(trial: optuna.Trial, param_config: dict) -> dict:
     param_config = param_config.copy()
 
     out = dict()
 
     for estimator_group_name, estimators_dict in param_config.items():
-        suggested_estimator_name = trial_.suggest_categorical(estimator_group_name, list(estimators_dict.keys()))
+        suggested_estimator_name = trial.suggest_categorical(estimator_group_name, list(estimators_dict.keys()))
         suggested_estimator_class = get_estimator_class(suggested_estimator_name)
 
         params_space = dict()
@@ -46,7 +48,7 @@ def suggest_classifier(trial_: Trial, param_config: dict) -> dict:
             params_space[params_key] = get_optuna_sampler(
                 params_config['args'], params_config["sampler"],
                 estimator_group_name + "_" + suggested_estimator_name + "_" + params_key,
-                trial_
+                trial
             )
 
         out[estimator_group_name] = {
@@ -60,92 +62,92 @@ def suggest_classifier(trial_: Trial, param_config: dict) -> dict:
 
 def get_sampler(
         package_name: str,
-        range_: list,
+        arg: list,
         sampler: str,
         sample_name: str = "",
-        trial_=None) -> Any:
+        trial: optuna.Trial = None) -> Any:
     match package_name:
         case "flaml":
-            return get_flaml_sampler(range_, sampler)
+            return get_flaml_sampler(arg, sampler)
         case "hyperopt":
-            return get_hyperopt_sampler(range_, sampler, sample_name)
+            return get_hyperopt_sampler(arg, sampler, sample_name)
         case "optuna":
-            return get_optuna_sampler(range_, sampler, sample_name, trial_)
+            return get_optuna_sampler(arg, sampler, sample_name, trial)
         case _:
             raise ValueError(f"Package {package_name} not supported")
 
 
-def get_flaml_sampler(range_: list, sampler: str) -> Any:
+def get_flaml_sampler(arg: list, sampler: str) -> flaml.tune.sample.Domain:
     match sampler:
         case "uniform":
-            return flaml.tune.uniform(*range_)
+            return flaml.tune.uniform(*arg)
         case "loguniform":
-            return flaml.tune.loguniform(*range_)
+            return flaml.tune.loguniform(*arg)
         case "quniform":
-            return flaml.tune.quniform(*range_)
+            return flaml.tune.quniform(*arg)
         case "qloguniform":
-            return flaml.tune.qloguniform(*range_)
+            return flaml.tune.qloguniform(*arg)
         case "uniformint":
-            return flaml.tune.randint(*range_)
+            return flaml.tune.randint(*arg)
         case "quniformint":
-            return flaml.tune.qrandint(*range_)
+            return flaml.tune.qrandint(*arg)
         case "loguniformint":
-            return flaml.tune.lograndint(*range_)
+            return flaml.tune.lograndint(*arg)
         case "qloguniformint":
-            return flaml.tune.qlograndint(*range_)
+            return flaml.tune.qlograndint(*arg)
         case "choice":
-            return flaml.tune.choice(range_)
+            return flaml.tune.choice(arg)
         case _:
             raise ValueError(f"Sampler {sampler} not supported")
 
 
-def get_hyperopt_sampler(range_: list, sampler: str, sample_name: str) -> Any:
+def get_hyperopt_sampler(arg: list, sampler: str, sample_name: str) -> hyperopt.pyll.Apply:
     match sampler:
         case "uniform":
-            return hp.uniform(sample_name, *range_)
+            return hp.uniform(sample_name, *arg)
         case "loguniform":
-            return hp.loguniform(sample_name, *range_)
+            return hp.loguniform(sample_name, *arg)
         case "quniform":
-            return hp.quniform(sample_name, *range_)
+            return hp.quniform(sample_name, *arg)
         case "qloguniform":
-            return hp.qloguniform(sample_name, *range_)
+            return hp.qloguniform(sample_name, *arg)
         case "uniformint":
-            return hp.randint(sample_name, *range_)
+            return hp.randint(sample_name, *arg)
         case "quniformint":
-            return scope.int(hp.quniform(sample_name, *range_))
+            return scope.int(hp.quniform(sample_name, *arg))
         case "loguniformint":
-            return scope.int(hp.loguniform(sample_name, *range_))
+            return scope.int(hp.loguniform(sample_name, *arg))
         case "qloguniformint":
-            return scope.int(hp.qloguniform(sample_name, *range_))
+            return scope.int(hp.qloguniform(sample_name, *arg))
         case "choice":
-            return hp.choice(sample_name, range_)
+            return hp.choice(sample_name, arg)
         case _:
             raise ValueError(f"Sampler {sampler} not supported")
 
 
-def get_optuna_sampler(range_: list,
+def get_optuna_sampler(arg: list,
                        sampler: str,
                        sample_name: str,
-                       trial_) -> Any:
+                       trial: optuna.Trial) -> Any:
     match sampler:
         case "uniform":
-            return trial_.suggest_float(sample_name, *range_)
+            return trial.suggest_float(sample_name, *arg)
         case "loguniform":
-            return trial_.suggest_float(sample_name, *range_, log=True)
+            return trial.suggest_float(sample_name, *arg, log=True)
         case "quniform":
-            return trial_.suggest_float(sample_name, range_[0], range_[1], step=range_[2])
+            return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2])
         case "qloguniform":
-            return trial_.suggest_float(sample_name, range_[0], range_[1], step=range_[2], log=True)
+            return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2], log=True)
         case "uniformint":
-            return trial_.suggest_int(sample_name, *range_)
+            return trial.suggest_int(sample_name, *arg)
         case "quniformint":
-            return trial_.suggest_int(sample_name, range_[0], range_[1], step=range_[2])
+            return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2])
         case "loguniformint":
-            return trial_.suggest_int(sample_name, range_[0], range_[1], log=True)
+            return trial.suggest_int(sample_name, arg[0], arg[1], log=True)
         case "qloguniformint":
-            return trial_.suggest_int(sample_name, range_[0], range_[1], step=range_[2], log=True)
+            return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2], log=True)
         case "choice":
-            return trial_.suggest_categorical(sample_name, range_)
+            return trial.suggest_categorical(sample_name, arg)
         case _:
             raise ValueError(f"Sampler {sampler} not supported")
 

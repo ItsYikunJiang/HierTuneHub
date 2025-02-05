@@ -4,7 +4,7 @@ from typing import Self, SupportsFloat
 
 import yaml
 import flaml.tune
-from optuna import Trial
+import optuna
 
 
 class SearchSpace:
@@ -56,7 +56,7 @@ class SearchSpace:
         """
         return convert_to_hyperopt_space(self.config)
 
-    def get_optuna_space(self, trial_: Trial) -> dict:
+    def get_optuna_space(self, trial_: optuna.Trial) -> dict:
         return suggest_classifier(trial_, self.config)
 
     def get_flaml_space(self) -> dict:
