@@ -36,6 +36,9 @@ class SearchSpace:
         self._parse_config()
 
     def _parse_config(self):
+        """
+        Parse the configuration to map values and range to args for simplicity.
+        """
         for estimator_group_name, estimators_dict in self.config.items():
             for estimator_name, params_dict in estimators_dict.items():
                 for params_name, params_config in params_dict.items():
@@ -56,10 +59,17 @@ class SearchSpace:
         """
         return convert_to_hyperopt_space(self.config)
 
-    def get_optuna_space(self, trial_: optuna.Trial) -> dict:
-        return suggest_classifier(trial_, self.config)
+    def get_optuna_space(self, trial: optuna.Trial) -> dict:
+        """
+        :param trial: An optuna trial object.
+        :return: A dictionary that outputs a sample from the search space.
+        """
+        return suggest_classifier(trial, self.config)
 
     def get_flaml_space(self) -> dict:
+        """
+        :return: A dictionary that defines the search space for FLAML.
+        """
         config = self.config.copy()
 
         out = dict()
@@ -81,6 +91,12 @@ class SearchSpace:
         return out
 
     def select(self, estimator_list: dict[str, list]) -> Self:
+        """
+        Select a subset of the search space based on the provided estimator_list.
+        :param estimator_list: A dictionary with keys as estimator group names and values as list of estimator names
+        that should be included in the search space.
+        :return: self
+        """
         for estimator_group_name, estimators_dict in self.config.items():
             if estimator_group_name not in estimator_list.keys():
                 del self.config[estimator_group_name]
@@ -91,6 +107,11 @@ class SearchSpace:
         return self
 
     def join(self, other_search_space: Self) -> Self:
+        """
+        Join the current search space with another search space.
+        :param other_search_space: Another search space object.
+        :return: self
+        """
         for estimator_group_name, estimators_dict in other_search_space.config.items():
             if estimator_group_name not in self.config.keys():
                 self.config[estimator_group_name] = estimators_dict

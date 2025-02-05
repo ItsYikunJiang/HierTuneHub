@@ -109,3 +109,8 @@ flaml_space = search_space.get_flaml_space()
 from flaml.tune import tune
 best_config = tune.run(objective, config=flaml_space)
 ```
+
+## Additional Features
+
+- `search_space.select(estimator_list)`: Select a subset of the search space for the given list of estimator classes.
+- `search_space.join(other_search_space)`: Join the search space with another search space.
