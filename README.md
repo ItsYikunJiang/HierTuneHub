@@ -15,7 +15,7 @@ The following is an example a search space for `SVC` and `RandomForestClassifier
 
 ```yaml
 ---
-estimators_group: # Start with an estimator group name
+estimators_group: # Start with an estimator group name. You can define multiple estimator groups.
   sklearn.svm.SVC: # estimator full name, which contains the package name and class name
     C: # hyperparameter name
       range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
@@ -69,10 +69,17 @@ An example objective function for hyperparameter optimization can be defined as 
 ```python
 def objective(config):
     sampled_estimator_config = config["estimator_group"]
-    estimator = sampled_estimator_config["estimator_class"](**sampled_estimator["params"])
-    score = cross_val_score(estimator, X, y, cv=5).mean()
+    estimator_name = sampled_estimator_config["estimator_name"]
+    estimator_class = sampled_estimator_config["estimator_class"]
+    model = estimator_class(**sampled_estimator_config["params"])
+    score = cross_val_score(model, X, y, cv=5).mean()
     return score
 ```
+
+`config["estimator_group"]` is a dictionary containing the sampled estimator configuration in the estimator group.
+A raw string of the estimator name is stored in the `estimator_name` field. `estimator_class` is the actual class object of the estimator.
+`params` is a dictionary containing the hyperparameters sampled from the search space.
+
 
 
 Finally, you can use the search space with hyperparameter optimization libraries.
