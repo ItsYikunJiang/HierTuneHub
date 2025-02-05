@@ -81,13 +81,23 @@ class SearchSpace:
         return out
 
     def select(self, estimator_list: dict[str, list]) -> Self:
-        for key, estimators in self.config.items():
-            if key not in estimator_list.keys():
-                del self.config[key]
+        for estimator_group_name, estimators_dict in self.config.items():
+            if estimator_group_name not in estimator_list.keys():
+                del self.config[estimator_group_name]
                 continue
-            self.config[key] = {k: v for k, v in estimators.items() if k in estimator_list[key]}
+            self.config[estimator_group_name] = {
+                k: v for k, v in estimators_dict.items() if k in estimator_list[estimator_group_name]
+            }
         return self
 
     def join(self, other_search_space: Self) -> Self:
-        self.config = {**self.config, **other_search_space.config}
+        for estimator_group_name, estimators_dict in other_search_space.config.items():
+            if estimator_group_name not in self.config.keys():
+                self.config[estimator_group_name] = estimators_dict
+            else:
+                for estimator_name, params_dict in estimators_dict.items():
+                    if estimator_name not in self.config[estimator_group_name].keys():
+                        self.config[estimator_group_name][estimator_name] = params_dict
+                    else:
+                        self.config[estimator_group_name][estimator_name].update(params_dict)
         return self
