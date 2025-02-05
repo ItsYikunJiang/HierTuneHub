@@ -3,6 +3,8 @@ from typing import Self, SupportsFloat, Any
 import yaml
 import flaml
 
+from utils import convert_to_hyperopt_space
+from utils import suggest_classifier
 
 class SearchSpace:
     """
@@ -32,10 +34,12 @@ class SearchSpace:
         """
         :return: A dictionary that defines the search space for hyperopt.
         """
+        return convert_to_hyperopt_space(self.config)
         ...
 
-    def get_optuna_space(self):
+    def get_optuna_space(self,trial_):
         # TODO: How to implement this? Optuna does not explicitly define a search space.
+        return suggest_classifier(trial_,self.config)
         ...
 
     def get_flaml_space(self) -> dict:
