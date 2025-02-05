@@ -10,8 +10,6 @@ HPSearchSpace is a Python library for defining search spaces for hyperparameter 
 
 ## Usage
 
-[//]: # (TODO: Add usage examples)
-
 First, you should define a search space in a YAML file.
 The following is an example a search space for `SVC` and `RandomForestClassifier` in `sklearn` package.
 
@@ -46,7 +44,7 @@ The estimators must be specified with their full name (e.g., `sklearn.svm.SVC`).
 For each estimator, you can define hyperparameters with their search space.
 For continuous hyperparameters, you can specify `range` and `sampler`.
 For categorical hyperparameters, you can specify `values`. `sampler` must be set to `choice`, or you can omit it.
-`default` is optional, it is used as the default value when initializing the hyperparameter tuning process.
+`default` is optional, it is used as the default value when initializing the hyperparameter tuning process (not implemented).
 
 There are several types of samplers supported in HPSearchSpace:
 - `uniform`: Uniform distribution
