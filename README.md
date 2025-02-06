@@ -22,20 +22,16 @@ estimators_group: # Start with an estimator group name. You can define multiple 
       # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
       # For quantized search space, range should be a list consisting of low, high and step such as [ 1.0e-10, 1.0, 1.0e-10 ]
       sampler: "loguniform"  # sampler type
-      default: 1.0  # default value, optional
     kernel:
       values: [ "linear", "rbf" ]  # categorical choices
       sampler: "choice"
-      default: "rbf"
   sklearn.ensemble.RandomForestClassifier:
     n_estimators:
       range: [ 10, 1000 ]
       sampler: "uniformint"
-      default: 10
     max_depth:
       range: [ 2, 32 ]
       sampler: "uniformint"
-      default: 5
 ```
 
 The YAML file may consist of multiple estimator groups. 
@@ -44,7 +40,6 @@ The estimators must be specified with their full name (e.g., `sklearn.svm.SVC`).
 For each estimator, you can define hyperparameters with their search space.
 For continuous hyperparameters, you can specify `range` and `sampler`.
 For categorical hyperparameters, you can specify `values`. `sampler` must be set to `choice`, or you can omit it.
-`default` is optional, it is used as the default value when initializing the hyperparameter tuning process (not implemented).
 
 There are several types of samplers supported in HPSearchSpace:
 - `uniform`: Uniform distribution

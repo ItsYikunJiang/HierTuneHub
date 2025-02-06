@@ -5,31 +5,24 @@ estimators:
       range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
       # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
       sampler: "loguniform"  # sampler type
-      default: 1.0  # default value, optional
     kernel:
       values: [ "linear" ]  # categorical choices
       sampler: "choice"
-      default: "linear"
   sklearn.ensemble.RandomForestClassifier:
     n_estimators:
       range: [ 10, 1000 ]
       sampler: "uniformint"
-      default: 10
     max_depth:
       range: [ 2, 32 ]
       sampler: "uniformint"
-      default: 5
   sklearn.ensemble.GradientBoostingClassifier:
     n_estimators:
       range: [ 10, 1000 ]
       sampler: "uniformint"
-      default: 10
     max_depth:
       range: [ 2, 32 ]
       sampler: "uniformint"
-      default: 5
   sklearn.neighbors.KNeighborsClassifier:
     n_neighbors:
       range: [ 2, 10 ]
       sampler: "uniformint"
-      default: 5
