@@ -6,6 +6,8 @@ import yaml
 import flaml.tune
 import optuna
 
+# TODO: support arbitrary number of hierarchies in the configuration
+
 
 class SearchSpace:
     """
@@ -53,20 +55,20 @@ class SearchSpace:
                     elif "range" in params_config.keys():
                         params_config['args'] = params_config.pop('range')
 
-    def get_hyperopt_space(self) -> dict:
+    def to_hyperopt(self) -> dict:
         """
         :return: A dictionary that defines the search space for hyperopt.
         """
         return convert_to_hyperopt_space(self.config)
 
-    def get_optuna_space(self, trial: optuna.Trial) -> dict:
+    def to_optuna(self, trial: optuna.Trial) -> dict:
         """
         :param trial: An optuna trial object.
         :return: A dictionary that outputs a sample from the search space.
         """
         return suggest_classifier(trial, self.config)
 
-    def get_flaml_space(self) -> dict:
+    def to_flaml(self) -> dict:
         """
         :return: A dictionary that defines the search space for FLAML.
         """

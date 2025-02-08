@@ -16,7 +16,7 @@ The following is an example a search space for `SVC` and `RandomForestClassifier
 ```yaml
 ---
 estimators_group: # Start with an estimator group name. You can define multiple estimator groups.
-  sklearn.svm.SVC: # estimator full name, which contains the package name and class name
+  sklearn.svm.SVC: # estimator full name, which contains the package name and class name if you want to directly use it.
     C: # hyperparameter name
       range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
       # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
@@ -71,6 +71,7 @@ def objective(config):
     return score
 ```
 
+`config` is a dictionary containing the sampled configuration.
 `config["estimator_group"]` is a dictionary containing the sampled estimator configuration in the estimator group.
 A raw string of the estimator name is stored in the `estimator_name` field. `estimator_class` is the actual class object of the estimator.
 `params` is a dictionary containing the hyperparameters sampled from the search space.
@@ -80,33 +81,40 @@ A raw string of the estimator name is stored in the `estimator_name` field. `est
 Finally, you can use the search space with hyperparameter optimization libraries.
 
 - For `Hyperopt`:
+
 ```python
-hp_space = search_space.get_hyperopt_space()
+hp_space = search_space.to_hyperopt()
 
 from hyperopt import fmin
+
 best = fmin(fn=objective, space=hp_space)
 ```
 
 - For `Optuna`: 
 A conversion is required because optuna's objective function takes in a trial object.
+
 ```python
 # conversion
 def objective_optuna(trial):
-    config = search_space.get_optuna_space(trial)
+    config = search_space.to_optuna(trial)
     return objective(config)
+
 
 # run optimization
 import optuna
+
 study = optuna.create_study(direction="minimize")
 study.optimize(objective_optuna, n_trials=100)
 ```
 
 - For `FLAML`:
+
 ```python
-flaml_space = search_space.get_flaml_space()
+flaml_space = search_space.to_flaml()
 
 # run optimization
 from flaml.tune import tune
+
 best_config = tune.run(objective, config=flaml_space)
 ```
 

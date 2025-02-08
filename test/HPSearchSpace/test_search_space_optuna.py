@@ -9,7 +9,7 @@ class TestOptuna:
         ss = HPSearchSpace.SearchSpace(config_file="./configs/example.yaml")
 
         def objective(trial):
-            config = ss.get_optuna_space(trial)
+            config = ss.to_optuna(trial)
             return 0
         study = optuna.create_study(direction="maximize")
         study.optimize(objective, n_trials=10)
