@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 from functools import wraps
 
 from .search_space import SearchSpace
@@ -19,11 +19,16 @@ class Tuner:
                  ):
         self.objective = objective
         self.search_space = search_space
+
         self.mode = mode
+        if self.mode not in ["min", "max"]:
+            raise ValueError("Mode must be either 'min' or 'max'")
+
         self.framework = framework
         if framework_params is None:
             framework_params = {}
         self.framework_params = framework_params
+
         self.metric = metric
 
         self.best_trial = None
@@ -40,36 +45,48 @@ class Tuner:
                 raise ValueError(f"Framework {self.framework} is not supported")
 
     @property
-    def best_params(self):
+    def best_params(self) -> dict:
         return self.best_trial['params']
 
     @property
-    def best_result(self):
+    def best_result(self) -> Union[float, dict]:
         return self.best_trial['result']
+
+    def wrap_hyperopt_objective(self, objective: Callable) -> Callable:
+        @wraps(objective)
+        def wrapped_objective(config: dict) -> dict:
+            result_ = objective(config)
+            if self.metric is not None:
+                if self.metric != "loss":
+                    result_['loss'] = result_[self.metric]
+
+                result_['status'] = hyperopt.STATUS_OK
+
+            if self.mode == 'min':
+                return result_
+            else:  # mode == 'max'
+                if self.metric is not None:
+                    result_['loss'] = -result_['loss']
+                else:
+                    result_ = -result_
+                return result_
+
+        return wrapped_objective
 
     def _run_hyperopt(self) -> None:
         trials = hyperopt.Trials()
         hyperopt_space = self.search_space.to_hyperopt()
         if self.metric is None:
-            result = hyperopt.fmin(self.objective,
+            wrapped_hyperopt_objective = self.wrap_hyperopt_objective(self.objective)
+            result = hyperopt.fmin(wrapped_hyperopt_objective,
                                    hyperopt_space,
                                    trials=trials,
                                    **self.framework_params)
             best_result = trials.best_trial['result']['loss']
+            if self.mode == 'max':
+                best_result = -best_result
         else:
-            def wrap_hyperopt_objective(objective: Callable):
-                @wraps(objective)
-                def wrapped_objective(config: dict):
-                    result_ = objective(config)
-                    if self.metric != "loss":
-                        result_['loss'] = result_[self.metric]
-
-                    result_['status'] = hyperopt.STATUS_OK
-                    return result_
-
-                return wrapped_objective
-
-            wrapped_hyperopt_objective = wrap_hyperopt_objective(self.objective)
+            wrapped_hyperopt_objective = self.wrap_hyperopt_objective(self.objective)
 
             result = hyperopt.fmin(wrapped_hyperopt_objective,
                                    hyperopt_space,
@@ -79,6 +96,9 @@ class Tuner:
             if self.metric != "loss":
                 best_result.pop('loss')
             best_result.pop('status')
+
+            if self.mode == 'max':
+                best_result[self.metric] = -best_result[self.metric]
 
         self.best_trial = {
             'params': hyperopt.space_eval(hyperopt_space, result),
