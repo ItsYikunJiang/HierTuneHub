@@ -8,6 +8,10 @@ import optuna
 import flaml.tune
 
 
+# TODO: add docstrings
+# TODO: add unified argument input for common kwargs
+# TODO: add support to get all the trial results
+
 class Tuner:
     def __init__(self,
                  objective: Callable,
@@ -16,6 +20,7 @@ class Tuner:
                  metric: Optional[str] = None,
                  framework: str = "hyperopt",
                  framework_params: dict = None,
+                 **kwargs
                  ):
         self.objective = objective
         self.search_space = search_space
@@ -28,21 +33,17 @@ class Tuner:
         if framework_params is None:
             framework_params = {}
         self.framework_params = framework_params
+        self.framework_params.update(kwargs)
 
         self.metric = metric
 
         self.best_trial = None
 
+    def wrap_objective(self, objective: Callable) -> Callable:
+        raise NotImplementedError
+
     def run(self) -> None:
-        match self.framework:
-            case "hyperopt":
-                self._run_hyperopt()
-            case "optuna":
-                self._run_optuna()
-            case "flaml":
-                self._run_flaml()
-            case _:
-                raise ValueError(f"Framework {self.framework} is not supported")
+        raise NotImplementedError
 
     @property
     def best_params(self) -> dict:
@@ -52,7 +53,9 @@ class Tuner:
     def best_result(self) -> Union[float, dict]:
         return self.best_trial['result']
 
-    def wrap_hyperopt_objective(self, objective: Callable) -> Callable:
+
+class HyperoptTuner(Tuner):
+    def wrap_objective(self, objective: Callable) -> Callable:
         @wraps(objective)
         def wrapped_objective(config: dict) -> dict:
             result_ = objective(config)
@@ -73,11 +76,11 @@ class Tuner:
 
         return wrapped_objective
 
-    def _run_hyperopt(self) -> None:
+    def run(self) -> None:
         trials = hyperopt.Trials()
         hyperopt_space = self.search_space.to_hyperopt()
         if self.metric is None:
-            wrapped_hyperopt_objective = self.wrap_hyperopt_objective(self.objective)
+            wrapped_hyperopt_objective = self.wrap_objective(self.objective)
             result = hyperopt.fmin(wrapped_hyperopt_objective,
                                    hyperopt_space,
                                    trials=trials,
@@ -86,7 +89,7 @@ class Tuner:
             if self.mode == 'max':
                 best_result = -best_result
         else:
-            wrapped_hyperopt_objective = self.wrap_hyperopt_objective(self.objective)
+            wrapped_hyperopt_objective = self.wrap_objective(self.objective)
 
             result = hyperopt.fmin(wrapped_hyperopt_objective,
                                    hyperopt_space,
@@ -105,7 +108,9 @@ class Tuner:
             'result': best_result
         }
 
-    def _run_optuna(self) -> None:
+
+class OptunaTuner(Tuner):
+    def run(self) -> None:
         mode_optuna = "minimize" if self.mode == "min" else "maximize"
         study = optuna.create_study(direction=mode_optuna)
 
@@ -138,7 +143,9 @@ class Tuner:
                 'result': study.best_trial.user_attrs,
             }
 
-    def _run_flaml(self) -> None:
+
+class FlamlTuner(Tuner):
+    def run(self) -> None:
         if self.metric is None:
             result = flaml.tune.run(self.objective,
                                     config=self.search_space.to_flaml(),
@@ -159,3 +166,41 @@ class Tuner:
             'params': result.best_config,
             'result': best_result
         }
+
+
+def create_tuner(
+        objective: Callable,
+        search_space: SearchSpace,
+        mode: str = "min",
+        metric: Optional[str] = None,
+        framework: str = "hyperopt",
+        framework_params: dict = None,
+        **kwargs
+) -> Tuner:
+    match framework:
+        case "hyperopt":
+            return HyperoptTuner(objective=objective,
+                                 search_space=search_space,
+                                 mode=mode,
+                                 metric=metric,
+                                 framework=framework,
+                                 framework_params=framework_params,
+                                 **kwargs)
+        case "optuna":
+            return OptunaTuner(objective=objective,
+                               search_space=search_space,
+                               mode=mode,
+                               metric=metric,
+                               framework=framework,
+                               framework_params=framework_params,
+                               **kwargs)
+        case "flaml":
+            return FlamlTuner(objective=objective,
+                              search_space=search_space,
+                              mode=mode,
+                              metric=metric,
+                              framework=framework,
+                              framework_params=framework_params,
+                              **kwargs)
+        case _:
+            raise ValueError(f"Framework {framework} not supported")
