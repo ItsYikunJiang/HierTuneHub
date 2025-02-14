@@ -1,6 +1,7 @@
-from .utils import convert_to_hyperopt_space, suggest_classifier, get_flaml_sampler, get_estimator_class
+from .utils import convert_to_hyperopt_space, suggest_classifier, convert_to_flaml_space
 
-from typing import Self, SupportsFloat
+import numbers
+from typing import Self, Union
 
 import yaml
 import flaml.tune
@@ -16,13 +17,16 @@ class SearchSpace:
 
     def __init__(self,
                  config_file: str = None,
-                 config: dict[str, dict[str, dict[str, dict[str, list | str | SupportsFloat]]]] = None,
+                 config: Union[dict, list] = None,
+                 config_framework: str = None
                  ):
         """
         Initialize the search space. You can either provide the configuration as a dictionary or as a YAML file.
         The input configuration should resemble certain structure. See example.yaml for an example.
         :param config: A dictionary containing the configuration for the search space.
         :param config_file: A YAML file containing the configuration for the search space.
+        :param config_type: If provided, you should provide config dict which is in the format of the
+        specified config type. Supported types are "flaml" and "hyperopt".
         """
         if config is None and config_file is None:
             raise ValueError("Either config or config_file must be provided")
@@ -35,25 +39,48 @@ class SearchSpace:
             with open(config_file, 'r') as stream:
                 self.config = yaml.safe_load(stream)
 
-        self._parse_config()
+        if config_framework is None:
+            self.config = self._parse_config(self.config)
+        else:
+            match config_framework:
+                case "flaml":
+                    self.config = self._transform_flaml(self.config)
+                case "hyperopt":
+                    self.config = self._transform_hyperopt(self.config)
+                case _:
+                    raise ValueError(f"Config type {config_framework} not supported")
 
-    def _parse_config(self):
+    @staticmethod
+    def _parse_config(config: dict | list | str) -> dict | list | str:
         """
         Parse the configuration to map values and range to args for simplicity.
         """
-        for estimator_group_name, estimators_dict in self.config.items():
-            for estimator_name, params_dict in estimators_dict.items():
-                for params_name, params_config in params_dict.items():
-                    if "values" in params_config.keys() and "range" in params_config.keys():
-                        raise ValueError("Both values and range cannot be provided for a parameter")
-                    if "values" not in params_config.keys() and "range" not in params_config.keys():
-                        raise ValueError("Either values or range must be provided for a parameter")
 
-                    if "values" in params_config.keys():
-                        params_config['args'] = params_config.pop('values')
-                        params_config['sampler'] = "choice"
-                    elif "range" in params_config.keys():
-                        params_config['args'] = params_config.pop('range')
+        if isinstance(config, dict):
+            new_config = dict()
+
+            if "values" in config.keys():
+                new_config['args'] = config.pop('values')
+                new_config['sampler'] = 'choice'
+                config.pop('sampler', None)
+                return new_config
+            elif "range" in config.keys():
+                new_config['args'] = config.pop('range')
+                new_config['sampler'] = config.pop('sampler')
+                return new_config
+
+            for k, v in config.items():
+                new_config[k] = SearchSpace._parse_config(v)
+
+        elif isinstance(config, list):
+            new_config = list()
+            for item in config:
+                new_config.append(SearchSpace._parse_config(item))
+
+        else:
+            new_config = config
+
+        return new_config
 
     def to_hyperopt(self) -> dict:
         """
@@ -72,25 +99,7 @@ class SearchSpace:
         """
         :return: A dictionary that defines the search space for FLAML.
         """
-        config = self.config.copy()
-
-        out = dict()
-
-        for estimator_group_name, estimators_dict in config.items():
-            space = list()
-
-            for estimator_name, params_dict in estimators_dict.items():
-                params_space = dict()
-
-                for params_key, params_config in params_dict.items():
-                    params_space[params_key] = get_flaml_sampler(params_config['args'], params_config["sampler"])
-
-                single_space = {"params": params_space, "estimator_name": estimator_name,
-                                "estimator_class": get_estimator_class(estimator_name)}
-                space.append(single_space)
-
-            out[estimator_group_name] = flaml.tune.choice(space)
-        return out
+        return convert_to_flaml_space(self.config)
 
     def select(self, estimator_list: dict[str, list]) -> Self:
         """
@@ -124,3 +133,57 @@ class SearchSpace:
                     else:
                         self.config[estimator_group_name][estimator_name].update(params_dict)
         return self
+
+    @staticmethod
+    def _transform_flaml(config: dict) -> dict:
+        """
+        Transform the configuration from FLAML format to the format used in this library.
+        """
+        new_config = dict()
+        for k, v in config.items():
+            if isinstance(v, dict):
+                new_config[k] = SearchSpace._transform_flaml(v)
+            elif isinstance(v, flaml.tune.sample.Domain):
+                new_config[k] = SearchSpace._match_flaml_domain(v)
+            elif isinstance(v, (int, float, numbers.Number)):
+                new_config[k] = v
+
+        return new_config
+
+    @staticmethod
+    def _transform_hyperopt(config: dict) -> dict:
+        """
+        Transform the configuration from Hyperopt format to the format used in this library.
+        """
+        # TODO: Implement this
+        pass
+
+    @staticmethod
+    def _match_flaml_domain(domain: flaml.tune.sample.Domain) -> dict:
+        """
+        Match the FLAML domain to the definition used in this library.
+        """
+        domain_type = domain.__class__.__name__
+        if domain_type == 'Categorical':
+            return {"args": domain.categories, "sampler": "choice"}
+
+        lower = domain.lower
+        upper = domain.upper
+        args = [lower, upper]
+
+        sampler = domain.get_sampler()
+        sampler_name = ''
+
+        if sampler.__class__.__name__ == 'Quantized':
+            sampler_name += 'q'
+            sampler = sampler.sampler
+            args += [sampler.q]
+
+        sampler_name += sampler.__class__.__name__.lower()[1:]
+
+        if domain_type == 'Integer':
+            sampler_name += 'int'
+
+        return {"args": args, "sampler": sampler_name}
+
+

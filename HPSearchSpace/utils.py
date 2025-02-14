@@ -7,31 +7,36 @@ from hyperopt import hp
 from hyperopt.pyll import scope
 import optuna
 
+import HPSearchSpace
 
-def convert_to_hyperopt_space(param_dict: dict) -> dict:
-    param_dict = param_dict.copy()
 
-    out = dict()
+def convert_to_hyperopt_space(param_cfg: dict | list, prefix: str = '') -> Any:
+    param_cfg = param_cfg.copy()
 
-    for estimator_group_name, estimators_dict in param_dict.items():
-        space = list()
+    if isinstance(param_cfg, dict):
+        new_config = dict()
+        if 'name' in param_cfg.keys():
+            name = param_cfg.pop('name')
+            return {
+                "name": name,
+                **convert_to_hyperopt_space(param_cfg, prefix + "_" + name)
+            }
 
-        for estimator_name, params_dict in estimators_dict.items():
-            params_space = dict()
+        for k, v in param_cfg.items():
+            if isinstance(v, dict):
+                if 'args' in v.keys():
+                    new_config[k] = get_hyperopt_sampler(v['args'], v['sampler'], prefix + "_" + k)
+            else:
+                new_config[k] = convert_to_hyperopt_space(v, prefix + "_" + k)
+        return new_config
+    elif isinstance(param_cfg, list):
+        new_config = list()
+        for item in param_cfg:
+            new_config.append(convert_to_hyperopt_space(item, prefix))
+        return hp.choice(prefix + "_" + 'name', new_config)
 
-            for params_key, params_config in params_dict.items():
-                params_space[params_key] = get_hyperopt_sampler(
-                    params_config['args'], params_config["sampler"],
-                    estimator_group_name + "_" + estimator_name + "_" + params_key
-                )
-
-            single_space = {"params": params_space, "estimator_name": estimator_name,
-                            "estimator_class": get_estimator_class(estimator_name)}
-            space.append(single_space)
-
-        out[estimator_group_name] = hp.choice(estimator_group_name, space)
-
-    return out
+    else:
+        return param_cfg
 
 
 def suggest_classifier(trial: optuna.Trial, param_config: dict) -> dict:
@@ -58,6 +63,35 @@ def suggest_classifier(trial: optuna.Trial, param_config: dict) -> dict:
         }
 
     return out
+
+
+def convert_to_flaml_space(param_cfg: dict | list) -> Any:
+    param_cfg = param_cfg.copy()
+
+    if isinstance(param_cfg, dict):
+        new_config = dict()
+        if 'name' in param_cfg.keys():
+            name = param_cfg.pop('name')
+            return {
+                "name": name,
+                **convert_to_flaml_space(param_cfg)
+            }
+
+        for k, v in param_cfg.items():
+            if isinstance(v, dict):
+                if 'args' in v.keys():
+                    new_config[k] = get_flaml_sampler(v['args'], v['sampler'])
+            else:
+                new_config[k] = convert_to_flaml_space(v)
+        return new_config
+    elif isinstance(param_cfg, list):
+        new_config = list()
+        for item in param_cfg:
+            new_config.append(convert_to_flaml_space(item))
+        return flaml.tune.choice(new_config)
+
+    else:
+        return param_cfg
 
 
 def get_sampler(

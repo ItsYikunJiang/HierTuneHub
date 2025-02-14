@@ -1,0 +1,37 @@
+---
+estimators:
+  - name: "sklearn.svm.SVC" # estimator full name
+    C: # hyperparameter name
+      range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
+      # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
+      sampler: "loguniform"  # sampler type
+    kernel:
+      - name: "linear"
+      - name: "poly"
+        degree:
+          range: [ 2, 5 ]
+          sampler: "uniformint"
+        gamma:
+          values: [ "auto", "scale" ]
+      - name: "rbf"
+        gamma:
+          values: [ "auto", "scale" ]
+          sampler: "loguniform"
+  - name: "sklearn.ensemble.RandomForestClassifier"
+    n_estimators:
+      range: [ 10, 1000 ]
+      sampler: "uniformint"
+    max_depth:
+      range: [ 2, 32 ]
+      sampler: "uniformint"
+  - name: "sklearn.ensemble.GradientBoostingClassifier"
+    n_estimators:
+      range: [ 10, 1000 ]
+      sampler: "uniformint"
+    max_depth:
+      range: [ 2, 32 ]
+      sampler: "uniformint"
+  - name: "sklearn.neighbors.KNeighborsClassifier"
+    n_neighbors:
+      range: [ 2, 10 ]
+      sampler: "uniformint"

@@ -13,22 +13,22 @@ x, y = iris.data, iris.target
 
 
 class TestTuner:
-    search_space = SearchSpace(config_file="./configs/example.yaml")
+    search_space = SearchSpace(config_file="./configs/example2.yaml")
 
     @staticmethod
     def objective(config):
-        estimator = config['estimators']['estimator_class']
-        params = config['estimators']['params']
-        model = estimator(**params)
+        # estimator = config['estimators']['estimator_class']
+        # params = config['estimators']['params']
+        # model = estimator(**params)
         score = 0
         return random.random()
 
     @staticmethod
     def objective_complex(config):
         t1 = time.time()
-        estimator = config['estimators']['estimator_class']
-        params = config['estimators']['params']
-        model = estimator(**params)
+        # estimator = config['estimators']['estimator_class']
+        # params = config['estimators']['params']
+        # model = estimator(**params)
         score = random.random()
         t2 = time.time()
         return {
