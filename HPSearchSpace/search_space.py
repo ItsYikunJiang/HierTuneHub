@@ -1,4 +1,4 @@
-from .utils import convert_to_hyperopt_space, suggest_classifier, convert_to_flaml_space
+from .utils import convert_to_hyperopt, convert_to_optuna, convert_to_flaml
 
 import numbers
 from typing import Self, Union
@@ -6,8 +6,6 @@ from typing import Self, Union
 import yaml
 import flaml.tune
 import optuna
-
-# TODO: support arbitrary number of hierarchies in the configuration
 
 
 class SearchSpace:
@@ -86,20 +84,20 @@ class SearchSpace:
         """
         :return: A dictionary that defines the search space for hyperopt.
         """
-        return convert_to_hyperopt_space(self.config)
+        return convert_to_hyperopt(self.config)
 
     def to_optuna(self, trial: optuna.Trial) -> dict:
         """
         :param trial: An optuna trial object.
         :return: A dictionary that outputs a sample from the search space.
         """
-        return suggest_classifier(trial, self.config)
+        return convert_to_optuna(trial, self.config)
 
     def to_flaml(self) -> dict:
         """
         :return: A dictionary that defines the search space for FLAML.
         """
-        return convert_to_flaml_space(self.config)
+        return convert_to_flaml(self.config)
 
     def select(self, estimator_list: dict[str, list]) -> Self:
         """

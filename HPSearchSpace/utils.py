@@ -10,7 +10,7 @@ import optuna
 import HPSearchSpace
 
 
-def convert_to_hyperopt_space(param_cfg: dict | list, prefix: str = '') -> Any:
+def convert_to_hyperopt(param_cfg: dict | list, prefix: str = '') -> Any:
     param_cfg = param_cfg.copy()
 
     if isinstance(param_cfg, dict):
@@ -19,7 +19,7 @@ def convert_to_hyperopt_space(param_cfg: dict | list, prefix: str = '') -> Any:
             name = param_cfg.pop('name')
             return {
                 "name": name,
-                **convert_to_hyperopt_space(param_cfg, prefix + "_" + name)
+                **convert_to_hyperopt(param_cfg, prefix + "_" + name)
             }
 
         for k, v in param_cfg.items():
@@ -27,45 +27,39 @@ def convert_to_hyperopt_space(param_cfg: dict | list, prefix: str = '') -> Any:
                 if 'args' in v.keys():
                     new_config[k] = get_hyperopt_sampler(v['args'], v['sampler'], prefix + "_" + k)
             else:
-                new_config[k] = convert_to_hyperopt_space(v, prefix + "_" + k)
+                new_config[k] = convert_to_hyperopt(v, prefix + "_" + k)
         return new_config
     elif isinstance(param_cfg, list):
         new_config = list()
         for item in param_cfg:
-            new_config.append(convert_to_hyperopt_space(item, prefix))
+            new_config.append(convert_to_hyperopt(item, prefix))
         return hp.choice(prefix + "_" + 'name', new_config)
 
     else:
         return param_cfg
 
 
-def suggest_classifier(trial: optuna.Trial, param_config: dict) -> dict:
-    param_config = param_config.copy()
+def convert_to_optuna(trial: optuna.Trial, param_cfg: dict, prefix: str = '') -> dict:
+    param_cfg = param_cfg.copy()
 
     out = dict()
 
-    for estimator_group_name, estimators_dict in param_config.items():
-        suggested_estimator_name = trial.suggest_categorical(estimator_group_name, list(estimators_dict.keys()))
-        suggested_estimator_class = get_estimator_class(suggested_estimator_name)
-
-        params_space = dict()
-        for params_key, params_config in estimators_dict[suggested_estimator_name].items():
-            params_space[params_key] = get_optuna_sampler(
-                params_config['args'], params_config["sampler"],
-                estimator_group_name + "_" + suggested_estimator_name + "_" + params_key,
-                trial
-            )
-
-        out[estimator_group_name] = {
-            "params": params_space,
-            "estimator_name": suggested_estimator_name,
-            "estimator_class": suggested_estimator_class
-        }
+    for k, v in param_cfg.items():
+        if isinstance(v, dict):
+            if 'args' in v.keys():
+                out[k] = get_optuna_sampler(v['args'], v['sampler'], prefix + "_" + k, trial)
+            else:
+                out[k] = convert_to_optuna(trial, v, prefix + "_" + k)
+        elif isinstance(v, list):
+            selected = trial.suggest_categorical(prefix + "_" + k, v)
+            out[k] = convert_to_optuna(trial, selected, prefix + "_" + k)
+        else:
+            out[k] = v
 
     return out
 
 
-def convert_to_flaml_space(param_cfg: dict | list) -> Any:
+def convert_to_flaml(param_cfg: dict | list) -> Any:
     param_cfg = param_cfg.copy()
 
     if isinstance(param_cfg, dict):
@@ -74,7 +68,7 @@ def convert_to_flaml_space(param_cfg: dict | list) -> Any:
             name = param_cfg.pop('name')
             return {
                 "name": name,
-                **convert_to_flaml_space(param_cfg)
+                **convert_to_flaml(param_cfg)
             }
 
         for k, v in param_cfg.items():
@@ -82,12 +76,12 @@ def convert_to_flaml_space(param_cfg: dict | list) -> Any:
                 if 'args' in v.keys():
                     new_config[k] = get_flaml_sampler(v['args'], v['sampler'])
             else:
-                new_config[k] = convert_to_flaml_space(v)
+                new_config[k] = convert_to_flaml(v)
         return new_config
     elif isinstance(param_cfg, list):
         new_config = list()
         for item in param_cfg:
-            new_config.append(convert_to_flaml_space(item))
+            new_config.append(convert_to_flaml(item))
         return flaml.tune.choice(new_config)
 
     else:
