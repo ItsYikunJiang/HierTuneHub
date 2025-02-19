@@ -7,52 +7,67 @@ from hyperopt import hp
 from hyperopt.pyll import scope
 import optuna
 
-import HPSearchSpace
+
+def add_prefix(prefix: str, name: str) -> str:
+    return f"{prefix}_{name}" if prefix else name
 
 
-def convert_to_hyperopt(param_cfg: dict | list, prefix: str = '') -> Any:
+def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name') -> Any:
+    if not isinstance(param_cfg, dict) and not isinstance(param_cfg, list):
+        return param_cfg
+
     param_cfg = param_cfg.copy()
 
     if isinstance(param_cfg, dict):
         new_config = dict()
-        if 'name' in param_cfg.keys():
-            name = param_cfg.pop('name')
+        if name in param_cfg.keys():
+            name_value = param_cfg.pop(name)
             return {
-                "name": name,
-                **convert_to_hyperopt(param_cfg, prefix + "_" + name)
+                name: name_value,
+                **convert_to_hyperopt(param_cfg, add_prefix(prefix, name_value), name)
             }
 
         for k, v in param_cfg.items():
             if isinstance(v, dict):
                 if 'args' in v.keys():
-                    new_config[k] = get_hyperopt_sampler(v['args'], v['sampler'], prefix + "_" + k)
+                    new_config[k] = get_hyperopt_sampler(v['args'], v['sampler'], add_prefix(prefix, k))
+                else:
+                    new_config[k] = convert_to_hyperopt(v, add_prefix(prefix, k), name)
             else:
-                new_config[k] = convert_to_hyperopt(v, prefix + "_" + k)
+                new_config[k] = convert_to_hyperopt(v, add_prefix(prefix, k), name)
         return new_config
     elif isinstance(param_cfg, list):
         new_config = list()
         for item in param_cfg:
-            new_config.append(convert_to_hyperopt(item, prefix))
+            new_config.append(convert_to_hyperopt(item, prefix, name))
         return hp.choice(prefix + "_" + 'name', new_config)
 
     else:
         return param_cfg
 
 
-def convert_to_optuna(trial: optuna.Trial, param_cfg: dict, prefix: str = '') -> dict:
+def convert_to_optuna(trial: optuna.Trial, param_cfg: Any, prefix: str = '', name: str = 'name') -> dict:
     param_cfg = param_cfg.copy()
 
     out = dict()
 
+    if isinstance(param_cfg, dict):
+        if name in param_cfg.keys():
+            name_value = param_cfg.pop(name)
+            return {
+                "name": name_value,
+                **convert_to_optuna(trial, param_cfg, add_prefix(prefix, name_value), name)
+            }
+
     for k, v in param_cfg.items():
         if isinstance(v, dict):
             if 'args' in v.keys():
-                out[k] = get_optuna_sampler(v['args'], v['sampler'], prefix + "_" + k, trial)
+                out[k] = get_optuna_sampler(v['args'], v['sampler'], add_prefix(prefix, k), trial)
             else:
-                out[k] = convert_to_optuna(trial, v, prefix + "_" + k)
+                out[k] = convert_to_optuna(trial, v, add_prefix(prefix, k), name)
         elif isinstance(v, list):
-            selected = trial.suggest_categorical(prefix + "_" + k, v)
-            out[k] = convert_to_optuna(trial, selected, prefix + "_" + k)
+            selected = trial.suggest_categorical(add_prefix(prefix, k), v)
+            out[k] = convert_to_optuna(trial, selected, add_prefix(prefix, k), name)
         else:
             out[k] = v
 
@@ -75,6 +90,8 @@ def convert_to_flaml(param_cfg: dict | list) -> Any:
             if isinstance(v, dict):
                 if 'args' in v.keys():
                     new_config[k] = get_flaml_sampler(v['args'], v['sampler'])
+                else:
+                    new_config[k] = convert_to_flaml(v)
             else:
                 new_config[k] = convert_to_flaml(v)
         return new_config
@@ -187,3 +204,56 @@ def get_estimator_class(estimator_name: str) -> Any:
     except ImportError:
         return None
     return eval(estimator_name)
+
+
+def _match_flaml_domain(domain: flaml.tune.sample.Domain) -> dict:
+    """
+    Match the FLAML domain to the definition used in this library.
+    """
+    domain_type = domain.__class__.__name__
+    if domain_type == 'Categorical':
+        return {"args": domain.categories, "sampler": "choice"}
+
+    lower = domain.lower
+    upper = domain.upper
+    args = [lower, upper]
+
+    sampler = domain.get_sampler()
+    sampler_name = ''
+
+    if sampler.__class__.__name__ == 'Quantized':
+        sampler_name += 'q'
+        sampler = sampler.sampler
+        args += [sampler.q]
+
+    sampler_name += sampler.__class__.__name__.lower()[1:]
+
+    if domain_type == 'Integer':
+        sampler_name += 'int'
+
+    return {"args": args, "sampler": sampler_name}
+
+
+def _transform_hyperopt(config: dict) -> dict:
+    """
+    Transform the configuration from Hyperopt format to the format used in this library.
+    """
+    # TODO: Implement this
+    pass
+
+
+def _transform_flaml(config: dict) -> dict:
+    """
+    Transform the configuration from FLAML format to the format used in this library.
+    """
+    new_config = dict()
+    for k, v in config.items():
+        if isinstance(v, dict):
+            new_config[k] = _transform_flaml(v)
+        elif isinstance(v, flaml.tune.sample.Domain):
+            new_config[k] = _match_flaml_domain(v)
+        else:
+            new_config[k] = v
+
+    return new_config
+

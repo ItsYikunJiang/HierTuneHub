@@ -10,38 +10,23 @@ HPSearchSpace is a Python library for defining search spaces for hyperparameter 
 
 ## Usage
 
+### Search Space
+
 First, you should define a search space in a YAML file.
-The following is an example a search space for `SVC` and `RandomForestClassifier` in `sklearn` package.
 
-```yaml
----
-estimators_group: # Start with an estimator group name. You can define multiple estimator groups.
-  sklearn.svm.SVC: # estimator full name, which contains the package name and class name if you want to directly use it.
-    C: # hyperparameter name
-      range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
-      # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
-      # For quantized search space, range should be a list consisting of low, high and step such as [ 1.0e-10, 1.0, 1.0e-10 ]
-      sampler: "loguniform"  # sampler type
-    kernel:
-      values: [ "linear", "rbf" ]  # categorical choices
-      sampler: "choice"
-  sklearn.ensemble.RandomForestClassifier:
-    n_estimators:
-      range: [ 10, 1000 ]
-      sampler: "uniformint"
-    max_depth:
-      range: [ 2, 32 ]
-      sampler: "uniformint"
-```
+- The YAML file may consist of multiple levels of hierarchy.
+- If the level is defined using a list, each item (dictionary) in the list is considered a possible choice.
+In the sampling process, one of the items is randomly selected.
+- If the level is defined using a dictionary, all key-value pairs will be included in the sampled configuration.
+- For a hyperparameter that needs to be tuned, you need to specify `range`, `values` and/or `sampler` as a dictionary at the lowest level.
+  - For continuous hyperparameters, you need to specify `range` and `sampler`. 
+  - For categorical hyperparameters, you need to specify `values`. `sampler` must be set to `choice`, or you can omit it.
+- `name` must be provided if the level is a list of dictionaries. It needs to be a unique name across all the choices to
+create a unique identifier for each hyperparameter (required by `Hyperopt`). 
+  - Or you can use other identifiers such as `id` or `class` pass `name="id"` or `name="class"` to the `SearchSpace` constructor.
 
-The YAML file may consist of multiple estimator groups. 
-In each estimator group, you can have multiple estimators. 
-The estimators must be specified with their full name (e.g., `sklearn.svm.SVC`).
-For each estimator, you can define hyperparameters with their search space.
-For continuous hyperparameters, you can specify `range` and `sampler`.
-For categorical hyperparameters, you can specify `values`. `sampler` must be set to `choice`, or you can omit it.
 
-There are several types of samplers supported in HPSearchSpace:
+There are several types of samplers supported in `HPSearchSpace`:
 - `uniform`: Uniform distribution
 - `loguniform`: Log-uniform distribution
 - `quniform`: Quantized uniform distribution
@@ -52,73 +37,159 @@ There are several types of samplers supported in HPSearchSpace:
 - `qloguniformint`: Quantized log-uniform integer distribution
 - `choice`: Categorical choices
 
-Then, you can load the search space from the YAML file and use it with hyperparameter optimization libraries.
+`SearchSpace` class provides the following methods:
+
+- `to_hyperopt`: Convert the search space to a dict for `Hyperopt`.
+- `to_optuna`: Convert the search space to `Optuna`. You need to pass in an `Optuna.Trial` object.
+- `to_flaml`: Convert the search space to a dict for `FLAML`.
+
+### Hyperparameter Tuning
+
+After you define the search space, you can use it for hyperparameter optimization. `HPSearchSpace` provides a unified interface for hyperparameter optimization libraries including `Hyperopt`, `Optuna`, and `FLAML`.
+
+You need to define your own objective function that takes in a sampled configuration and returns either a single score or a dictionary containing scores and other information.
+
+You can call `create_tuner` function to create a `Tuner` class with the search space and the optimization library you want to use.
 
 ```python
-from HPSearchSpace import SearchSpace
-search_space = SearchSpace(config_file="search_space.yaml")
+def create_tuner(
+        objective: Callable,
+        search_space: SearchSpace,
+        mode: str = "min",
+        metric: Optional[str] = None,
+        framework: str = "hyperopt",
+        framework_params: dict = None,
+        **kwargs
+) -> Tuner:
+    """
+    Create a tuner object based on the specified framework.
+    :param objective: user-defined objective function. The objective function can ouput a single float value, or a
+    dictionary containing the metric value and other values.
+    :param search_space: A SearchSpace object containing the search space for the hyperparameters.
+    :param mode: The optimization mode. Either 'min' or 'max'.
+    :param metric: If the objective function returns a dictionary, the metric key specifies the key to be used for
+    optimization.
+    :param framework: The framework to be used for optimization. Supported frameworks are "hyperopt", "optuna", and
+    "flaml".
+    :param framework_params: Additional parameters to be passed to the framework tuning function.
+    :param kwargs: Additional parameters to be passed to the framework tuning function.
+    :return: A Tuner object based on the specified framework.
+    """
 ```
 
-An example objective function for hyperparameter optimization can be defined as follows:
+`Tuner` class provides `run` method to start the optimization process. 
+After the optimization process is finished, you can get the best hyperparameters and the best result by calling `best_params` and `best_result` attributes.
+
+## Example
+
+The following is an example to tune hyperparameters for different classifiers using unified interface provided by `HPSearchSpace`.
+
+The search space is defined in a YAML file as follows:
+
+```yaml
+---
+estimators:
+  - name: "sklearn.svm.SVC" # estimator full name
+    C: # hyperparameter name
+      range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
+      # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
+      sampler: "loguniform"  # sampler type
+    kernel:
+      - name: "linear"
+      - name: "poly"
+        degree:
+          range: [ 2, 5 ]
+          sampler: "uniformint"
+        gamma:
+          values: [ "auto", "scale" ]
+      - name: "rbf"
+        gamma:
+          values: [ "auto", "scale" ]
+          sampler: "loguniform"
+  - name: "sklearn.ensemble.RandomForestClassifier"
+    n_estimators:
+      range: [ 10, 1000 ]
+      sampler: "uniformint"
+    max_depth:
+      range: [ 2, 32 ]
+      sampler: "uniformint"
+  - name: "sklearn.ensemble.GradientBoostingClassifier"
+    n_estimators:
+      range: [ 10, 1000 ]
+      sampler: "uniformint"
+    max_depth:
+      range: [ 2, 32 ]
+      sampler: "uniformint"
+  - name: "sklearn.neighbors.KNeighborsClassifier"
+    n_neighbors:
+      range: [ 2, 10 ]
+      sampler: "uniformint"
+```
+
+The objective function is defined as follows:
 
 ```python
+import time
+
+from sklearn.datasets import load_iris
+from sklearn.model_selection import cross_val_score
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+
+iris = load_iris()
+x, y = iris.data, iris.target
+
 def objective(config):
-    sampled_estimator_config = config["estimator_group"]
-    estimator_name = sampled_estimator_config["estimator_name"]
-    estimator_class = sampled_estimator_config["estimator_class"]
-    model = estimator_class(**sampled_estimator_config["params"])
-    score = cross_val_score(model, X, y, cv=5).mean()
-    return score
+    config = config['estimators']
+    name = config.pop("name")
+    if name == "sklearn.svm.SVC":
+        c = config.pop("C")
+        kernel = config['kernel'].pop("name")
+        kernel_params = config['kernel']
+        model = SVC(C=c, kernel=kernel, **kernel_params)
+    elif name == "sklearn.ensemble.RandomForestClassifier":
+        model = RandomForestClassifier(**config)
+    elif name == "sklearn.ensemble.GradientBoostingClassifier":
+        model = GradientBoostingClassifier(**config)
+    elif name == "sklearn.neighbors.KNeighborsClassifier":
+        model = KNeighborsClassifier(**config)
+    else:
+        raise ValueError(f"Unknown estimator: {config['estimator']}")
+    
+    t_start = time.time()
+    acc = cross_val_score(model, x, y, cv=5).mean()
+    t_end = time.time()
+    return {
+        'acc': acc, 
+        'time': t_end - t_start
+    }
 ```
 
-`config` is a dictionary containing the sampled configuration.
-`config["estimator_group"]` is a dictionary containing the sampled estimator configuration in the estimator group.
-A raw string of the estimator name is stored in the `estimator_name` field. `estimator_class` is the actual class object of the estimator.
-`params` is a dictionary containing the hyperparameters sampled from the search space.
-
-
-
-Finally, you can use the search space with hyperparameter optimization libraries.
-
-- For `Hyperopt`:
+Now, we can create a tuner object and run the optimization process:
 
 ```python
-hp_space = search_space.to_hyperopt()
-
-from hyperopt import fmin
-
-best = fmin(fn=objective, space=hp_space)
+search_space = SearchSpace("example.yaml")
+hyperopt_tuner = create_tuner(objective,
+                              search_space,
+                              mode="max",
+                              metric="acc",
+                              framework="hyperopt",
+                              max_evals=10  # number of evaluation times
+                              )
+hyperopt_tuner.run()
 ```
 
-- For `Optuna`: 
-A conversion is required because optuna's objective function takes in a trial object.
+In the end, we can get the best hyperparameters and the best result:
 
 ```python
-# conversion
-def objective_optuna(trial):
-    config = search_space.to_optuna(trial)
-    return objective(config)
+best_params = hyperopt_tuner.best_params
+best_result = hyperopt_tuner.best_result
 
+print(best_params)
+print(best_result)
 
-# run optimization
-import optuna
-
-study = optuna.create_study(direction="minimize")
-study.optimize(objective_optuna, n_trials=100)
+# Output (may vary):
+# {'estimators': {'C': 1.7454438588621903, 'kernel': {'degree': np.int64(2), 'gamma': 'scale', 'name': 'poly'}, 'name': 'sklearn.svm.SVC'}}
+# {'acc': np.float64(-0.9866666666666667), 'time': 0.008997917175292969}
 ```
-
-- For `FLAML`:
-
-```python
-flaml_space = search_space.to_flaml()
-
-# run optimization
-from flaml.tune import tune
-
-best_config = tune.run(objective, config=flaml_space)
-```
-
-## Additional Features
-
-- `search_space.select(estimator_list)`: Select a subset of the search space for the given list of estimator classes.
-- `search_space.join(other_search_space)`: Join the search space with another search space.

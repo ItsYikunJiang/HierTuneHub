@@ -22,6 +22,19 @@ class Tuner:
                  framework_params: dict = None,
                  **kwargs
                  ):
+        """
+        Initialize the tuner.
+        :param objective: user-defined objective function. The objective function can ouput a single float value, or a
+        dictionary containing the metric value and other values.
+        :param search_space: A SearchSpace object containing the search space for the hyperparameters.
+        :param mode: The optimization mode. Either 'min' or 'max'.
+        :param metric: If the objective function returns a dictionary, the metric key specifies the key to be used for
+        optimization.
+        :param framework: The framework to be used for optimization. Supported frameworks are "hyperopt", "optuna", and
+        "flaml".
+        :param framework_params: Additional parameters to be passed to the framework tuning function.
+        :param kwargs: Additional parameters to be passed to the framework tuning function.
+        """
         self.objective = objective
         self.search_space = search_space
 
@@ -40,17 +53,31 @@ class Tuner:
         self.best_trial = None
 
     def wrap_objective(self, objective: Callable) -> Callable:
+        """
+        Wrap the objective function to return the result in the format expected by the framework.
+        :param objective: The objective function to be wrapped.
+        :return: The wrapped objective function.
+        """
         raise NotImplementedError
 
     def run(self) -> None:
+        """
+        Run the optimization process.
+        """
         raise NotImplementedError
 
     @property
     def best_params(self) -> dict:
+        """
+        :return: The best hyperparameters found by the tuner.
+        """
         return self.best_trial['params']
 
     @property
     def best_result(self) -> Union[float, dict]:
+        """
+        :return: The best result found by the tuner.
+        """
         return self.best_trial['result']
 
 
@@ -110,25 +137,25 @@ class HyperoptTuner(Tuner):
 
 
 class OptunaTuner(Tuner):
+    def wrap_objective(self, objective: Callable) -> Callable:
+        @wraps(objective)
+        def wrapped_objective(trial: optuna.Trial):
+            config = self.search_space.to_optuna(trial)
+            result = objective(config)
+            if isinstance(result, dict):
+                for key, value in result.items():
+                    trial.set_user_attr(key, value)
+                return result[self.metric]
+            else:
+                return result
+
+        return wrapped_objective
+
     def run(self) -> None:
         mode_optuna = "minimize" if self.mode == "min" else "maximize"
         study = optuna.create_study(direction=mode_optuna)
 
-        def wrap_optuna_objective(objective: Callable):
-            @wraps(objective)
-            def wrapped_objective(trial: optuna.Trial):
-                config = self.search_space.to_optuna(trial)
-                result = objective(config)
-                if isinstance(result, dict):
-                    for key, value in result.items():
-                        trial.set_user_attr(key, value)
-                    return result[self.metric]
-                else:
-                    return result
-
-            return wrapped_objective
-
-        wrapped_optuna_objective = wrap_optuna_objective(self.objective)
+        wrapped_optuna_objective = self.wrap_objective(self.objective)
         study.optimize(wrapped_optuna_objective,
                        **self.framework_params)
 
@@ -177,6 +204,20 @@ def create_tuner(
         framework_params: dict = None,
         **kwargs
 ) -> Tuner:
+    """
+    Create a tuner object based on the specified framework.
+    :param objective: user-defined objective function. The objective function can ouput a single float value, or a
+    dictionary containing the metric value and other values.
+    :param search_space: A SearchSpace object containing the search space for the hyperparameters.
+    :param mode: The optimization mode. Either 'min' or 'max'.
+    :param metric: If the objective function returns a dictionary, the metric key specifies the key to be used for
+    optimization.
+    :param framework: The framework to be used for optimization. Supported frameworks are "hyperopt", "optuna", and
+    "flaml".
+    :param framework_params: Additional parameters to be passed to the framework tuning function.
+    :param kwargs: Additional parameters to be passed to the framework tuning function.
+    :return: A Tuner object based on the specified framework.
+    """
     match framework:
         case "hyperopt":
             return HyperoptTuner(objective=objective,
