@@ -41,13 +41,12 @@ class SearchSpace:
         if config_framework is None:
             self.config = self._parse_config(self.config)
         else:
-            match config_framework:
-                case "flaml":
-                    self.config = _transform_flaml(self.config)
-                case "hyperopt":
-                    self.config = _transform_hyperopt(self.config)
-                case _:
-                    raise ValueError(f"Config type {config_framework} not supported")
+            if config_framework == 'flaml':
+                self.config = _transform_flaml(self.config)
+            elif config_framework == 'hyperopt':
+                self.config = _transform_hyperopt(self.config)
+            else:
+                raise ValueError(f"Config type {config_framework} not supported")
 
     @staticmethod
     def _parse_config(config: dict | list | str) -> dict | list | str:

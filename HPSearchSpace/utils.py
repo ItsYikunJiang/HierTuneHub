@@ -307,7 +307,7 @@ def _transform_hyperopt(config: dict) -> dict:
     Transform the configuration from Hyperopt format to the format used in this library.
     """
     # TODO: Implement this
-    pass
+    raise NotImplementedError
 
 
 def _transform_flaml(config: Any) -> Any:
