@@ -218,30 +218,29 @@ def create_tuner(
     :param kwargs: Additional parameters to be passed to the framework tuning function.
     :return: A Tuner object based on the specified framework.
     """
-    match framework:
-        case "hyperopt":
-            return HyperoptTuner(objective=objective,
-                                 search_space=search_space,
-                                 mode=mode,
-                                 metric=metric,
-                                 framework=framework,
-                                 framework_params=framework_params,
-                                 **kwargs)
-        case "optuna":
-            return OptunaTuner(objective=objective,
-                               search_space=search_space,
-                               mode=mode,
-                               metric=metric,
-                               framework=framework,
-                               framework_params=framework_params,
-                               **kwargs)
-        case "flaml":
-            return FlamlTuner(objective=objective,
-                              search_space=search_space,
-                              mode=mode,
-                              metric=metric,
-                              framework=framework,
-                              framework_params=framework_params,
-                              **kwargs)
-        case _:
-            raise ValueError(f"Framework {framework} not supported")
+    if framework == "hyperopt":
+        return HyperoptTuner(objective=objective,
+                             search_space=search_space,
+                             mode=mode,
+                             metric=metric,
+                             framework=framework,
+                             framework_params=framework_params,
+                             **kwargs)
+    elif framework == "optuna":
+        return OptunaTuner(objective=objective,
+                           search_space=search_space,
+                           mode=mode,
+                           metric=metric,
+                           framework=framework,
+                           framework_params=framework_params,
+                           **kwargs)
+    elif framework == "flaml":
+        return FlamlTuner(objective=objective,
+                          search_space=search_space,
+                          mode=mode,
+                          metric=metric,
+                          framework=framework,
+                          framework_params=framework_params,
+                          **kwargs)
+    else:
+        raise ValueError(f"Framework {framework} not supported")

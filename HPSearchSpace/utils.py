@@ -111,90 +111,158 @@ def get_sampler(
         sampler: str,
         sample_name: str = "",
         trial: optuna.Trial = None) -> Any:
-    match package_name:
-        case "flaml":
-            return get_flaml_sampler(arg, sampler)
-        case "hyperopt":
-            return get_hyperopt_sampler(arg, sampler, sample_name)
-        case "optuna":
-            return get_optuna_sampler(arg, sampler, sample_name, trial)
-        case _:
-            raise ValueError(f"Package {package_name} not supported")
+    # match package_name:
+    #     case "flaml":
+    #         return get_flaml_sampler(arg, sampler)
+    #     case "hyperopt":
+    #         return get_hyperopt_sampler(arg, sampler, sample_name)
+    #     case "optuna":
+    #         return get_optuna_sampler(arg, sampler, sample_name, trial)
+    #     case _:
+    #         raise ValueError(f"Package {package_name} not supported")
+    if package_name == "flaml":
+        return get_flaml_sampler(arg, sampler)
+    elif package_name == "hyperopt":
+        return get_hyperopt_sampler(arg, sampler, sample_name)
+    elif package_name == "optuna":
+        return get_optuna_sampler(arg, sampler, sample_name, trial)
+    else:
+        raise ValueError(f"Package {package_name} not supported")
 
 
 def get_flaml_sampler(arg: list, sampler: str) -> flaml.tune.sample.Domain:
-    match sampler:
-        case "uniform":
-            return flaml.tune.uniform(*arg)
-        case "loguniform":
-            return flaml.tune.loguniform(*arg)
-        case "quniform":
-            return flaml.tune.quniform(*arg)
-        case "qloguniform":
-            return flaml.tune.qloguniform(*arg)
-        case "uniformint":
-            return flaml.tune.randint(*arg)
-        case "quniformint":
-            return flaml.tune.qrandint(*arg)
-        case "loguniformint":
-            return flaml.tune.lograndint(*arg)
-        case "qloguniformint":
-            return flaml.tune.qlograndint(*arg)
-        case "choice":
-            return flaml.tune.choice(arg)
-        case _:
-            raise ValueError(f"Sampler {sampler} not supported")
+    # match sampler:
+    #     case "uniform":
+    #         return flaml.tune.uniform(*arg)
+    #     case "loguniform":
+    #         return flaml.tune.loguniform(*arg)
+    #     case "quniform":
+    #         return flaml.tune.quniform(*arg)
+    #     case "qloguniform":
+    #         return flaml.tune.qloguniform(*arg)
+    #     case "uniformint":
+    #         return flaml.tune.randint(*arg)
+    #     case "quniformint":
+    #         return flaml.tune.qrandint(*arg)
+    #     case "loguniformint":
+    #         return flaml.tune.lograndint(*arg)
+    #     case "qloguniformint":
+    #         return flaml.tune.qlograndint(*arg)
+    #     case "choice":
+    #         return flaml.tune.choice(arg)
+    #     case _:
+    #         raise ValueError(f"Sampler {sampler} not supported")
+    if sampler == "uniform":
+        return flaml.tune.uniform(*arg)
+    elif sampler == "loguniform":
+        return flaml.tune.loguniform(*arg)
+    elif sampler == "quniform":
+        return flaml.tune.quniform(*arg)
+    elif sampler == "qloguniform":
+        return flaml.tune.qloguniform(*arg)
+    elif sampler == "uniformint":
+        return flaml.tune.randint(*arg)
+    elif sampler == "quniformint":
+        return flaml.tune.qrandint(*arg)
+    elif sampler == "loguniformint":
+        return flaml.tune.lograndint(*arg)
+    elif sampler == "qloguniformint":
+        return flaml.tune.qlograndint(*arg)
+    elif sampler == "choice":
+        return flaml.tune.choice(arg)
+    else:
+        raise ValueError(f"Sampler {sampler} not supported")
 
 
 def get_hyperopt_sampler(arg: list, sampler: str, sample_name: str) -> hyperopt.pyll.Apply:
-    match sampler:
-        case "uniform":
-            return hp.uniform(sample_name, *arg)
-        case "loguniform":
-            return hp.loguniform(sample_name, *arg)
-        case "quniform":
-            return hp.quniform(sample_name, *arg)
-        case "qloguniform":
-            return hp.qloguniform(sample_name, *arg)
-        case "uniformint":
-            return hp.randint(sample_name, *arg)
-        case "quniformint":
-            return scope.int(hp.quniform(sample_name, *arg))
-        case "loguniformint":
-            return scope.int(hp.loguniform(sample_name, *arg))
-        case "qloguniformint":
-            return scope.int(hp.qloguniform(sample_name, *arg))
-        case "choice":
-            return hp.choice(sample_name, arg)
-        case _:
-            raise ValueError(f"Sampler {sampler} not supported")
+    # match sampler:
+    #     case "uniform":
+    #         return hp.uniform(sample_name, *arg)
+    #     case "loguniform":
+    #         return hp.loguniform(sample_name, *arg)
+    #     case "quniform":
+    #         return hp.quniform(sample_name, *arg)
+    #     case "qloguniform":
+    #         return hp.qloguniform(sample_name, *arg)
+    #     case "uniformint":
+    #         return hp.randint(sample_name, *arg)
+    #     case "quniformint":
+    #         return scope.int(hp.quniform(sample_name, *arg))
+    #     case "loguniformint":
+    #         return scope.int(hp.loguniform(sample_name, *arg))
+    #     case "qloguniformint":
+    #         return scope.int(hp.qloguniform(sample_name, *arg))
+    #     case "choice":
+    #         return hp.choice(sample_name, arg)
+    #     case _:
+    #         raise ValueError(f"Sampler {sampler} not supported")
+    if sampler == "uniform":
+        return hp.uniform(sample_name, *arg)
+    elif sampler == "loguniform":
+        return hp.loguniform(sample_name, *arg)
+    elif sampler == "quniform":
+        return hp.quniform(sample_name, *arg)
+    elif sampler == "qloguniform":
+        return hp.qloguniform(sample_name, *arg)
+    elif sampler == "uniformint":
+        return hp.randint(sample_name, *arg)
+    elif sampler == "quniformint":
+        return scope.int(hp.quniform(sample_name, *arg))
+    elif sampler == "loguniformint":
+        return scope.int(hp.loguniform(sample_name, *arg))
+    elif sampler == "qloguniformint":
+        return scope.int(hp.qloguniform(sample_name, *arg))
+    elif sampler == "choice":
+        return hp.choice(sample_name, arg)
+    else:
+        raise ValueError(f"Sampler {sampler} not supported")
 
 
 def get_optuna_sampler(arg: list,
                        sampler: str,
                        sample_name: str,
                        trial: optuna.Trial) -> Any:
-    match sampler:
-        case "uniform":
-            return trial.suggest_float(sample_name, *arg)
-        case "loguniform":
-            return trial.suggest_float(sample_name, *arg, log=True)
-        case "quniform":
-            return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2])
-        case "qloguniform":
-            return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2], log=True)
-        case "uniformint":
-            return trial.suggest_int(sample_name, *arg)
-        case "quniformint":
-            return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2])
-        case "loguniformint":
-            return trial.suggest_int(sample_name, arg[0], arg[1], log=True)
-        case "qloguniformint":
-            return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2], log=True)
-        case "choice":
-            return trial.suggest_categorical(sample_name, arg)
-        case _:
-            raise ValueError(f"Sampler {sampler} not supported")
+    # match sampler:
+    #     case "uniform":
+    #         return trial.suggest_float(sample_name, *arg)
+    #     case "loguniform":
+    #         return trial.suggest_float(sample_name, *arg, log=True)
+    #     case "quniform":
+    #         return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2])
+    #     case "qloguniform":
+    #         return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2], log=True)
+    #     case "uniformint":
+    #         return trial.suggest_int(sample_name, *arg)
+    #     case "quniformint":
+    #         return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2])
+    #     case "loguniformint":
+    #         return trial.suggest_int(sample_name, arg[0], arg[1], log=True)
+    #     case "qloguniformint":
+    #         return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2], log=True)
+    #     case "choice":
+    #         return trial.suggest_categorical(sample_name, arg)
+    #     case _:
+    #         raise ValueError(f"Sampler {sampler} not supported")
+    if sampler == "uniform":
+        return trial.suggest_float(sample_name, *arg)
+    elif sampler == "loguniform":
+        return trial.suggest_float(sample_name, *arg, log=True)
+    elif sampler == "quniform":
+        return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2])
+    elif sampler == "qloguniform":
+        return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2], log=True)
+    elif sampler == "uniformint":
+        return trial.suggest_int(sample_name, *arg)
+    elif sampler == "quniformint":
+        return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2])
+    elif sampler == "loguniformint":
+        return trial.suggest_int(sample_name, arg[0], arg[1], log=True)
+    elif sampler == "qloguniformint":
+        return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2], log=True)
+    elif sampler == "choice":
+        return trial.suggest_categorical(sample_name, arg)
+    else:
+        raise ValueError(f"Sampler {sampler} not supported")
 
 
 def get_estimator_class(estimator_name: str) -> Any:
@@ -242,18 +310,21 @@ def _transform_hyperopt(config: dict) -> dict:
     pass
 
 
-def _transform_flaml(config: dict) -> dict:
+def _transform_flaml(config: Any) -> Any:
     """
     Transform the configuration from FLAML format to the format used in this library.
     """
-    new_config = dict()
-    for k, v in config.items():
-        if isinstance(v, dict):
-            new_config[k] = _transform_flaml(v)
-        elif isinstance(v, flaml.tune.sample.Domain):
-            new_config[k] = _match_flaml_domain(v)
-        else:
-            new_config[k] = v
+    if isinstance(config, dict):
+        new_config = dict()
+        for k, v in config.items():
+            if isinstance(v, dict):
+                new_config[k] = _transform_flaml(v)
+            elif isinstance(v, flaml.tune.sample.Domain):
+                new_config[k] = _transform_flaml(_match_flaml_domain(v))
+            else:
+                new_config[k] = v
+    else:
+        return config
 
     return new_config
 
