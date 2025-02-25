@@ -32,13 +32,14 @@ class TestTuner:
         score = random.random()
         t2 = time.time()
         return {
-            "score": -score,
+            "score": score,
             "time": t2 - t1
         }
 
     def test_tuner_hyperopt(self):
         tuner = create_tuner(objective=self.objective,
                              search_space=self.search_space,
+                             mode="max",
                              framework="hyperopt",
                              framework_params={"max_evals": 10})
         tuner.run()
@@ -66,6 +67,7 @@ class TestTuner:
     def test_tuner_hyperopt_complex(self):
         tuner = create_tuner(objective=self.objective_complex,
                              search_space=self.search_space,
+                             mode="max",
                              metric="score",
                              framework="hyperopt",
                              framework_params={"max_evals": 10})

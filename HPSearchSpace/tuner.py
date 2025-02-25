@@ -1,5 +1,7 @@
 from typing import Callable, Optional, Union
 from functools import wraps
+from copy import deepcopy
+from dataclasses import dataclass
 
 from .search_space import SearchSpace
 
@@ -9,7 +11,13 @@ import flaml.tune
 
 
 # TODO: add unified argument input for common kwargs
-# TODO: add support to get all the trial results
+
+
+@dataclass
+class Trial:
+    params: dict
+    result: Union[float, dict]
+
 
 class Tuner:
     def __init__(self,
@@ -49,6 +57,7 @@ class Tuner:
 
         self.metric = metric
 
+        self._trials = list()
         self.best_trial = None
 
     def wrap_objective(self, objective: Callable) -> Callable:
@@ -65,19 +74,25 @@ class Tuner:
         """
         raise NotImplementedError
 
+    def get_trials(self):
+        """
+        :return: All the trial results and parameters produced by the tuner.
+        """
+        return self._trials
+
     @property
     def best_params(self) -> dict:
         """
         :return: The best hyperparameters found by the tuner.
         """
-        return self.best_trial['params']
+        return self.best_trial.params
 
     @property
     def best_result(self) -> Union[float, dict]:
         """
         :return: The best result found by the tuner.
         """
-        return self.best_trial['result']
+        return self.best_trial.result
 
 
 class HyperoptTuner(Tuner):
@@ -93,7 +108,7 @@ class HyperoptTuner(Tuner):
 
             if self.mode == 'min':
                 return result_
-            else:  # mode == 'max'
+            else:  # self.mode == 'max'
                 if self.metric is not None:
                     result_['loss'] = -result_['loss']
                 else:
@@ -105,34 +120,49 @@ class HyperoptTuner(Tuner):
     def run(self) -> None:
         trials = hyperopt.Trials()
         hyperopt_space = self.search_space.to_hyperopt()
+
+        wrapped_hyperopt_objective = self.wrap_objective(self.objective)
+
+        result = hyperopt.fmin(wrapped_hyperopt_objective,
+                               hyperopt_space,
+                               trials=trials,
+                               **self.framework_params)
+
+        best_result = self._parse_result(trials.best_trial['result'])
+
+        self.best_trial = Trial(params=hyperopt.space_eval(hyperopt_space, result),
+                                result=best_result)
+
+        for trial in trials.trials:
+            self._trials.append(
+                Trial(
+                    params=hyperopt.space_eval(hyperopt_space, self._parse_misc_vals(trial['misc']['vals'])),
+                    result=self._parse_result(trial['result'])
+                )
+            )
+
+    @staticmethod
+    def _parse_misc_vals(vals: dict) -> dict:
+        """
+        Parse the 'vals' dictionary of hyperopt to return the hyperparameters in the correct format.
+        """
+        return {key: vals[key][0] for key in vals if vals[key]}
+
+    def _parse_result(self, result: dict) -> Union[float, dict]:
+        """
+        Parse the result dictionary of hyperopt to return the result defined by the user.
+        """
+        result = result.copy()
         if self.metric is None:
-            wrapped_hyperopt_objective = self.wrap_objective(self.objective)
-            result = hyperopt.fmin(wrapped_hyperopt_objective,
-                                   hyperopt_space,
-                                   trials=trials,
-                                   **self.framework_params)
-            best_result = trials.best_trial['result']['loss']
+            result = result['loss']
             if self.mode == 'max':
-                best_result = -best_result
+                result = -result
         else:
-            wrapped_hyperopt_objective = self.wrap_objective(self.objective)
-
-            result = hyperopt.fmin(wrapped_hyperopt_objective,
-                                   hyperopt_space,
-                                   trials=trials,
-                                   **self.framework_params)
-            best_result = trials.best_trial['result']
+            result.pop('status')
             if self.metric != "loss":
-                best_result.pop('loss')
-            best_result.pop('status')
+                result.pop('loss')
 
-            if self.mode == 'max':
-                best_result[self.metric] = -best_result[self.metric]
-
-        self.best_trial = {
-            'params': hyperopt.space_eval(hyperopt_space, result),
-            'result': best_result
-        }
+        return result
 
 
 class OptunaTuner(Tuner):
@@ -159,15 +189,25 @@ class OptunaTuner(Tuner):
                        **self.framework_params)
 
         if self.metric is None:
-            self.best_trial = {
-                'params': study.best_trial.params,
-                'result': study.best_trial.value,
-            }
+            self.best_trial = Trial(params=study.best_trial.params,
+                                    result=study.best_trial.value)
+            for trial in study.trials:
+                self._trials.append(
+                    Trial(
+                        params=trial.params,
+                        result=trial.value
+                    )
+                )
         else:
-            self.best_trial = {
-                'params': study.best_params,
-                'result': study.best_trial.user_attrs,
-            }
+            self.best_trial = Trial(params=study.best_params,
+                                    result=study.best_trial.user_attrs)
+            for trial in study.trials:
+                self._trials.append(
+                    Trial(
+                        params=trial.params,
+                        result=trial.user_attrs
+                    )
+                )
 
 
 class FlamlTuner(Tuner):
@@ -177,21 +217,37 @@ class FlamlTuner(Tuner):
                                     config=self.search_space.to_flaml(),
                                     mode=self.mode,
                                     **self.framework_params)
-            best_result = result.get_best_trial(self.metric, mode=self.mode).last_result['_metric']
         else:
             result = flaml.tune.run(self.objective,
                                     config=self.search_space.to_flaml(),
                                     mode=self.mode,
                                     metric=self.metric,
                                     **self.framework_params)
-            best_result = result.get_best_trial(self.metric, mode=self.mode).last_result
-            for key_to_move in ['config', 'config/estimators', 'experiment_tag', 'time_total_s', 'training_iteration']:
-                best_result.pop(key_to_move, None)
 
-        self.best_trial = {
-            'params': result.best_config,
-            'result': best_result
-        }
+        best_result = self._parse_result(result.get_best_trial(self.metric, mode=self.mode).last_result)
+
+        self.best_trial = Trial(params=result.best_config,
+                                result=best_result)
+
+        for trial in result.trials:
+            self._trials.append(
+                Trial(
+                    params=trial.config,
+                    result=self._parse_result(trial.last_result)
+                )
+            )
+
+    def _parse_result(self, result: dict) -> Union[float, dict]:
+        """
+        Parse the result trail of flaml to return the result defined by the user.
+        """
+        result = result.copy()
+        if self.metric is None:
+            return result['_metric']
+        else:
+            for key_to_move in ['config', 'config/estimators', 'experiment_tag', 'time_total_s', 'training_iteration']:
+                result.pop(key_to_move, None)
+            return result
 
 
 def create_tuner(
