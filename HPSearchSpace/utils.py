@@ -8,8 +8,8 @@ from hyperopt.pyll import scope
 import optuna
 
 
-def add_prefix(prefix: str, name: str) -> str:
-    return f"{prefix}_{name}" if prefix else name
+def add_prefix(prefix: str, name: str, sep: str) -> str:
+    return prefix + sep + name if prefix else name
 
 
 def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', sep: str = '_') -> Any:
@@ -24,17 +24,17 @@ def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', se
             name_value = param_cfg.pop(name)
             return {
                 name: name_value,
-                **convert_to_hyperopt(param_cfg, add_prefix(prefix, name_value), name, sep)
+                **convert_to_hyperopt(param_cfg, add_prefix(prefix, name_value, sep), name, sep)
             }
 
         for k, v in param_cfg.items():
             if isinstance(v, dict):
                 if 'args' in v.keys():
-                    new_config[k] = get_hyperopt_sampler(v['args'], v['sampler'], add_prefix(prefix, k))
+                    new_config[k] = get_hyperopt_sampler(v['args'], v['sampler'], add_prefix(prefix, k, sep))
                 else:
-                    new_config[k] = convert_to_hyperopt(v, add_prefix(prefix, k), name, sep)
+                    new_config[k] = convert_to_hyperopt(v, add_prefix(prefix, k, sep), name, sep)
             else:
-                new_config[k] = convert_to_hyperopt(v, add_prefix(prefix, k), name, sep)
+                new_config[k] = convert_to_hyperopt(v, add_prefix(prefix, k, sep), name, sep)
         return new_config
     elif isinstance(param_cfg, list):
         new_config = list()
@@ -57,18 +57,18 @@ def convert_to_optuna(trial: optuna.Trial, param_cfg: Any,
             name_value = param_cfg.pop(name)
             return {
                 "name": name_value,
-                **convert_to_optuna(trial, param_cfg, add_prefix(prefix, name_value), name, sep)
+                **convert_to_optuna(trial, param_cfg, add_prefix(prefix, name_value, sep), name, sep)
             }
 
     for k, v in param_cfg.items():
         if isinstance(v, dict):
             if 'args' in v.keys():
-                out[k] = get_optuna_sampler(v['args'], v['sampler'], add_prefix(prefix, k), trial)
+                out[k] = get_optuna_sampler(v['args'], v['sampler'], add_prefix(prefix, k, sep), trial)
             else:
-                out[k] = convert_to_optuna(trial, v, add_prefix(prefix, k), name, sep)
+                out[k] = convert_to_optuna(trial, v, add_prefix(prefix, k, sep), name, sep)
         elif isinstance(v, list):
-            selected = trial.suggest_categorical(add_prefix(prefix, k), v)
-            out[k] = convert_to_optuna(trial, selected, add_prefix(prefix, k), name, sep)
+            selected = trial.suggest_categorical(add_prefix(prefix, k, sep), v)
+            out[k] = convert_to_optuna(trial, selected, add_prefix(prefix, k, sep), name, sep)
         else:
             out[k] = v
 
