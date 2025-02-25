@@ -3,7 +3,12 @@ from .utils import (
     _transform_flaml, _transform_hyperopt
 )
 
-from typing import Self, Union
+import sys
+if sys.version_info >= (3, 11):
+    from typing import Self, Union, Any
+else:
+    from typing import Any as Self
+    from typing import Union, Any
 
 import yaml
 import optuna
@@ -17,7 +22,8 @@ class SearchSpace:
     def __init__(self,
                  config_file: str = None,
                  config: Union[dict, list] = None,
-                 config_framework: str = None
+                 config_framework: str = None,
+                 name: str = 'name'
                  ):
         """
         Initialize the search space. You can either provide the configuration as a dictionary or as a YAML file.
@@ -48,8 +54,10 @@ class SearchSpace:
             else:
                 raise ValueError(f"Config type {config_framework} not supported")
 
+        self.name = name
+
     @staticmethod
-    def _parse_config(config: dict | list | str) -> dict | list | str:
+    def _parse_config(config: Any) -> Any:
         """
         Parse the configuration to map values and range to args for simplicity.
         """
@@ -84,14 +92,14 @@ class SearchSpace:
         """
         :return: A dictionary that defines the search space for hyperopt.
         """
-        return convert_to_hyperopt(self.config)
+        return convert_to_hyperopt(self.config, name=self.name)
 
     def to_optuna(self, trial: optuna.Trial) -> dict:
         """
         :param trial: An optuna trial object.
         :return: A dictionary that outputs a sample from the search space.
         """
-        return convert_to_optuna(trial, self.config)
+        return convert_to_optuna(trial, self.config, name=self.name)
 
     def to_flaml(self) -> dict:
         """

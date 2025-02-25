@@ -8,7 +8,6 @@ import optuna
 import flaml.tune
 
 
-# TODO: add docstrings
 # TODO: add unified argument input for common kwargs
 # TODO: add support to get all the trial results
 

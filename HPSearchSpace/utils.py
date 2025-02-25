@@ -74,7 +74,7 @@ def convert_to_optuna(trial: optuna.Trial, param_cfg: Any, prefix: str = '', nam
     return out
 
 
-def convert_to_flaml(param_cfg: dict | list) -> Any:
+def convert_to_flaml(param_cfg: Any) -> Any:
     param_cfg = param_cfg.copy()
 
     if isinstance(param_cfg, dict):
@@ -314,13 +314,25 @@ def _transform_flaml(config: Any) -> Any:
     """
     Transform the configuration from FLAML format to the format used in this library.
     """
+    try:
+        import ray.tune.search.sample
+        domain_class = ray.tune.search.sample.Domain
+    except ImportError:
+        domain_class = flaml.tune.sample.Domain
+
     if isinstance(config, dict):
         new_config = dict()
         for k, v in config.items():
             if isinstance(v, dict):
                 new_config[k] = _transform_flaml(v)
-            elif isinstance(v, flaml.tune.sample.Domain):
-                new_config[k] = _transform_flaml(_match_flaml_domain(v))
+            elif isinstance(v, domain_class):
+                result = _match_flaml_domain(v)
+                if isinstance(result['args'][0], dict):
+                    new_config[k] = list()
+                    for item in result['args']:
+                        new_config[k].append(_transform_flaml(item))
+                else:
+                    new_config[k] = result
             else:
                 new_config[k] = v
     else:
