@@ -80,7 +80,10 @@ def create_tuner(
 ```
 
 `Tuner` class provides `run` method to start the optimization process. 
-After the optimization process is finished, you can get the best hyperparameters and the best result by calling `best_params` and `best_result` attributes.
+After the optimization process is finished, you can get the best hyperparameters and the best result by calling `best_params` and `best_result` properties.
+
+You can also call `trials` property to get all the trials evaluated during the optimization process. 
+It is a list of `Trial` objects which contains `params` and `result` attributes corresponding to the sampled configuration and the result of objective function.
 
 ## Example
 
