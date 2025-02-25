@@ -23,7 +23,8 @@ class SearchSpace:
                  config_file: str = None,
                  config: Union[dict, list] = None,
                  config_framework: str = None,
-                 name: str = 'name'
+                 name: str = 'name',
+                 sep: str = '_'
                  ):
         """
         Initialize the search space. You can either provide the configuration as a dictionary or as a YAML file.
@@ -32,6 +33,8 @@ class SearchSpace:
         :param config_file: A YAML file containing the configuration for the search space.
         :param config_framework: If provided, you should provide config dict which is in the format of the
         specified config type. Supported types are "flaml" and "hyperopt".
+        :param name: The unique name key in the search space that will be used to identify different hyperparameters.
+        :param seq: The separator used to join the name key with the hyperparameter
         """
         if config is None and config_file is None:
             raise ValueError("Either config or config_file must be provided")
@@ -55,6 +58,7 @@ class SearchSpace:
                 raise ValueError(f"Config type {config_framework} not supported")
 
         self.name = name
+        self.sep = sep
 
     @staticmethod
     def _parse_config(config: Any) -> Any:
@@ -92,14 +96,14 @@ class SearchSpace:
         """
         :return: A dictionary that defines the search space for hyperopt.
         """
-        return convert_to_hyperopt(self.config, name=self.name)
+        return convert_to_hyperopt(self.config, name=self.name, sep=self.sep)
 
     def to_optuna(self, trial: optuna.Trial) -> dict:
         """
         :param trial: An optuna trial object.
         :return: A dictionary that outputs a sample from the search space.
         """
-        return convert_to_optuna(trial, self.config, name=self.name)
+        return convert_to_optuna(trial, self.config, name=self.name, sep=self.sep)
 
     def to_flaml(self) -> dict:
         """
