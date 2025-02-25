@@ -1,6 +1,5 @@
 from typing import Callable, Optional, Union, Any
 from functools import wraps
-from copy import deepcopy
 from dataclasses import dataclass
 
 from .search_space import SearchSpace
@@ -9,9 +8,6 @@ from .utils import add_prefix
 import hyperopt
 import optuna
 import flaml.tune
-
-
-# TODO: add unified argument input for common kwargs
 
 
 @dataclass
@@ -75,9 +71,10 @@ class Tuner:
         """
         raise NotImplementedError
 
-    def get_trials(self):
+    @property
+    def trials(self):
         """
-        :return: All the trial results and parameters produced by the tuner.
+        :return: The list of trials performed by the tuner.
         """
         return self._trials
 
@@ -189,30 +186,18 @@ class OptunaTuner(Tuner):
         study.optimize(wrapped_optuna_objective,
                        **self.framework_params)
 
-        if self.metric is None:
-            self._params = study.best_trial.params.copy()
-            self.best_trial = Trial(params=self._parse_params(study.best_trial.params),
-                                    result=study.best_trial.value)
-            for trial in study.trials:
-                self._params = trial.params.copy()
-                self._trials.append(
-                    Trial(
-                        params=self._parse_params(trial.params),
-                        result=trial.value
-                    )
+        self._params = study.best_trial.params.copy()
+        self.best_trial = Trial(params=self._parse_params(study.best_trial.params),
+                                result=study.best_trial.value if self.metric is None else study.best_trial.user_attrs)
+
+        for trial in study.trials:
+            self._params = trial.params.copy()
+            self._trials.append(
+                Trial(
+                    params=self._parse_params(trial.params),
+                    result=trial.value if self.metric is None else trial.user_attrs
                 )
-        else:
-            self._params = study.best_trial.params.copy()
-            self.best_trial = Trial(params=self._parse_params(study.best_trial.params),
-                                    result=study.best_trial.user_attrs)
-            for trial in study.trials:
-                self._params = trial.params.copy()
-                self._trials.append(
-                    Trial(
-                        params=self._parse_params(trial.params),
-                        result=trial.user_attrs
-                    )
-                )
+            )
 
         del self._params
 

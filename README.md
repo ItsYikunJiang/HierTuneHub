@@ -15,18 +15,20 @@ HPSearchSpace is a Python library for defining search spaces for hyperparameter 
 First, you should define a search space in a YAML file.
 
 - The YAML file may consist of multiple levels of hierarchy.
-- If the level is defined using a list, each item (dictionary) in the list is considered a possible choice.
+- If the level is defined using a list, each item in the list should be a dictionary, and each item is considered a possible choice.
 In the sampling process, one of the items is randomly selected.
 - If the level is defined using a dictionary, all key-value pairs will be included in the sampled configuration.
 - For a hyperparameter that needs to be tuned, you need to specify `range`, `values` and/or `sampler` as a dictionary at the lowest level.
   - For continuous hyperparameters, you need to specify `range` and `sampler`. 
   - For categorical hyperparameters, you need to specify `values`. `sampler` must be set to `choice`, or you can omit it.
-- `name` must be provided if the level is a list of dictionaries. It needs to be a unique name across all the choices to
-create a unique identifier for each hyperparameter (required by `Hyperopt`). 
-  - Or you can use other identifiers such as `id` or `class` pass `name="id"` or `name="class"` to the `SearchSpace` constructor.
+- For `Hyperopt` and `Optuna`, they need a unique identifier for every possible hyperparameter. Therefore, the defined search space must satisfy the following conditions:
+  - A unique identifier key-value pair must be provided in the dictionary if it is a possible choice from a list level. 
+  The key name must be the same across the whole file. The value must be unique across all the choices.
+  It is required by `Hyperopt` and `Optuna` to identify the configuration.
+    - Default key name is `name`, or you can use other identifiers such as `id` or `class` pass `name="id"` or `name="class"` to the `SearchSpace` constructor.
+  - A unique character string that is not present in any other keys. Default is `?`.
 
-
-There are several types of samplers supported in `HPSearchSpace`:
+The following types of samplers are supported in `HPSearchSpace`:
 - `uniform`: Uniform distribution
 - `loguniform`: Log-uniform distribution
 - `quniform`: Quantized uniform distribution
