@@ -1,9 +1,10 @@
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Any
 from functools import wraps
 from copy import deepcopy
 from dataclasses import dataclass
 
 from .search_space import SearchSpace
+from .utils import add_prefix
 
 import hyperopt
 import optuna
@@ -189,25 +190,67 @@ class OptunaTuner(Tuner):
                        **self.framework_params)
 
         if self.metric is None:
-            self.best_trial = Trial(params=study.best_trial.params,
+            self._params = study.best_trial.params.copy()
+            self.best_trial = Trial(params=self._parse_params(study.best_trial.params),
                                     result=study.best_trial.value)
             for trial in study.trials:
+                self._params = trial.params.copy()
                 self._trials.append(
                     Trial(
-                        params=trial.params,
+                        params=self._parse_params(trial.params),
                         result=trial.value
                     )
                 )
         else:
-            self.best_trial = Trial(params=study.best_params,
+            self._params = study.best_trial.params.copy()
+            self.best_trial = Trial(params=self._parse_params(study.best_trial.params),
                                     result=study.best_trial.user_attrs)
             for trial in study.trials:
+                self._params = trial.params.copy()
                 self._trials.append(
                     Trial(
-                        params=trial.params,
+                        params=self._parse_params(trial.params),
                         result=trial.user_attrs
                     )
                 )
+
+        del self._params
+
+    def _parse_params(self, params: dict) -> dict:
+        out = dict()
+        for k, v in params.items():
+            if self.search_space.sep not in k:
+                out[k] = v
+
+        return self._parse_params_inner(out, name=self.search_space.name, sep=self.search_space.sep)
+
+    def _parse_params_inner(self, param_cfg: Any,
+                            prefix: str = '', name: str = 'name', sep: str = '?') -> Any:
+        param_cfg = param_cfg.copy()
+
+        out = dict()
+
+        if isinstance(param_cfg, dict):
+            if name in param_cfg.keys():
+                name_value = param_cfg.pop(name)
+                return {
+                    name: name_value,
+                    **self._parse_params_inner(param_cfg, add_prefix(prefix, name_value, sep), name, sep)
+                }
+
+        for k, v in param_cfg.items():
+            if isinstance(v, dict):
+                if 'args' in v.keys():
+                    out[k] = self._params[add_prefix(prefix, k, sep)]
+                else:
+                    out[k] = self._parse_params_inner(v, add_prefix(prefix, k, sep), name, sep)
+            elif isinstance(v, list):
+                selected = self._params[add_prefix(prefix, k, sep)]
+                out[k] = self._parse_params_inner(selected, add_prefix(prefix, k, sep), name, sep)
+            else:
+                out[k] = v
+
+        return out
 
 
 class FlamlTuner(Tuner):

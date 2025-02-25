@@ -12,7 +12,7 @@ def add_prefix(prefix: str, name: str, sep: str) -> str:
     return prefix + sep + name if prefix else name
 
 
-def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', sep: str = '_') -> Any:
+def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', sep: str = '?') -> Any:
     if not isinstance(param_cfg, dict) and not isinstance(param_cfg, list):
         return param_cfg
 
@@ -40,14 +40,14 @@ def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', se
         new_config = list()
         for item in param_cfg:
             new_config.append(convert_to_hyperopt(item, prefix, name, sep))
-        return hp.choice(prefix + "_" + 'name', new_config)
+        return hp.choice(prefix + sep + 'name', new_config)
 
     else:
         return param_cfg
 
 
 def convert_to_optuna(trial: optuna.Trial, param_cfg: Any,
-                      prefix: str = '', name: str = 'name', sep: str = '_') -> dict:
+                      prefix: str = '', name: str = 'name', sep: str = '?') -> dict:
     param_cfg = param_cfg.copy()
 
     out = dict()
@@ -56,7 +56,7 @@ def convert_to_optuna(trial: optuna.Trial, param_cfg: Any,
         if name in param_cfg.keys():
             name_value = param_cfg.pop(name)
             return {
-                "name": name_value,
+                name: name_value,
                 **convert_to_optuna(trial, param_cfg, add_prefix(prefix, name_value, sep), name, sep)
             }
 
@@ -75,16 +75,16 @@ def convert_to_optuna(trial: optuna.Trial, param_cfg: Any,
     return out
 
 
-def convert_to_flaml(param_cfg: Any) -> Any:
+def convert_to_flaml(param_cfg: Any, name: str = 'name') -> Any:
     param_cfg = param_cfg.copy()
 
     if isinstance(param_cfg, dict):
         new_config = dict()
-        if 'name' in param_cfg.keys():
-            name = param_cfg.pop('name')
+        if name in param_cfg.keys():
+            name_value = param_cfg.pop(name)
             return {
-                "name": name,
-                **convert_to_flaml(param_cfg)
+                name: name_value,
+                **convert_to_flaml(param_cfg, name)
             }
 
         for k, v in param_cfg.items():
@@ -92,14 +92,14 @@ def convert_to_flaml(param_cfg: Any) -> Any:
                 if 'args' in v.keys():
                     new_config[k] = get_flaml_sampler(v['args'], v['sampler'])
                 else:
-                    new_config[k] = convert_to_flaml(v)
+                    new_config[k] = convert_to_flaml(v, name)
             else:
-                new_config[k] = convert_to_flaml(v)
+                new_config[k] = convert_to_flaml(v, name)
         return new_config
     elif isinstance(param_cfg, list):
         new_config = list()
         for item in param_cfg:
-            new_config.append(convert_to_flaml(item))
+            new_config.append(convert_to_flaml(item, name))
         return flaml.tune.choice(new_config)
 
     else:

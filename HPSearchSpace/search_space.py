@@ -24,7 +24,7 @@ class SearchSpace:
                  config: Union[dict, list] = None,
                  config_framework: str = None,
                  name: str = 'name',
-                 sep: str = '_'
+                 sep: str = '?'
                  ):
         """
         Initialize the search space. You can either provide the configuration as a dictionary or as a YAML file.
@@ -109,7 +109,7 @@ class SearchSpace:
         """
         :return: A dictionary that defines the search space for FLAML.
         """
-        return convert_to_flaml(self.config)
+        return convert_to_flaml(self.config, name=self.name)
 
     def join(self, other_search_space: Self) -> Self:
         """
