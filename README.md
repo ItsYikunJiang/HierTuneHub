@@ -195,6 +195,6 @@ print(best_params)
 print(best_result)
 
 # Output (may vary):
-# {'estimators': {'C': 1.7454438588621903, 'kernel': {'degree': np.int64(2), 'gamma': 'scale', 'name': 'poly'}, 'name': 'sklearn.svm.SVC'}}
-# {'acc': np.float64(-0.9866666666666667), 'time': 0.008997917175292969}
+# {'estimators': {'C': 1.9537341171427107, 'kernel': {'gamma': 'auto', 'name': 'rbf'}, 'name': 'sklearn.svm.SVC'}}
+# {'acc': np.float64(0.9800000000000001), 'time': 0.012115001678466797}
 ```
