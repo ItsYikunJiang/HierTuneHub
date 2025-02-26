@@ -6,7 +6,9 @@ HPSearchSpace is a Python library for defining search spaces for hyperparameter 
 
 - Support YAML file for defining search space.
 - Support hierarchical search space definition.
-- Support optimization libraries including `Hyperopt`, `Optuna` and `FLAML`.
+- Support optimization libraries including [Hyperopt](https://github.com/hyperopt/hyperopt), 
+[Optuna](https://github.com/optuna/optuna)
+- and [FLAML](https://github.com/microsoft/FLAML).
 
 ## Usage
 
@@ -24,9 +26,9 @@ In the sampling process, one of the items is randomly selected.
 - For `Hyperopt` and `Optuna`, they need a unique identifier for every possible hyperparameter. Therefore, the defined search space must satisfy the following conditions:
   - A unique identifier key-value pair must be provided in the dictionary if it is a possible choice from a list level. 
   The key name must be the same across the whole file. The value must be unique across all the choices.
-  It is required by `Hyperopt` and `Optuna` to identify the configuration.
-    - Default key name is `name`, or you can use other identifiers such as `id` or `class` pass `name="id"` or `name="class"` to the `SearchSpace` constructor.
-  - A unique character string that is not present in any other keys. Default is `?`.
+    - Default key name is `name`, or you can use other identifiers such as `id` or `class` and pass `name="id"` or `name="class"` to the `SearchSpace` constructor.
+  - A unique character string that is not present in any other keys. It is used to concatenate the keys to form a unique identifier. 
+  Default is `?`, or you can use other characters such as `!` and pass `sep="!"` to the `SearchSpace` constructor.
 
 The following types of samplers are supported in `HPSearchSpace`:
 - `uniform`: Uniform distribution
@@ -87,14 +89,17 @@ It is a list of `Trial` objects which contains `params` and `result` attributes 
 
 ## Example
 
-The following is an example to tune hyperparameters for different classifiers using unified interface provided by `HPSearchSpace`.
+The following is an example of iris dataset classification problem. 
+We want to tune hyperparameters for different classifiers using unified interface provided by `HPSearchSpace` to find the best hyperparameters that maximize the accuracy.
 
-The search space is defined in a YAML file as follows:
+The search space is defined in a YAML file as follows. 
+It consists of four classifiers: `SVC`, `RandomForestClassifier`, `GradientBoostingClassifier`, and `KNeighborsClassifier`.
+Each classifier has its own hyperparameters to be tuned.
 
 ```yaml
 ---
 estimators:
-  - name: "sklearn.svm.SVC" # estimator full name
+  - name: "sklearn.svm.SVC" # estimator name
     C: # hyperparameter name
       range: [ 1.0e-10, 1.0 ]  # hyperparameter range, from low to high. For scientific notation,
       # 1e-10 should be written as 1.0e-10 so that YAML parser can parse it as numeric type correctly.
@@ -106,7 +111,7 @@ estimators:
           range: [ 2, 5 ]
           sampler: "uniformint"
         gamma:
-          values: [ "auto", "scale" ]
+          values: [ "auto", "scale" ]  # categorical choices
       - name: "rbf"
         gamma:
           values: [ "auto", "scale" ]
@@ -131,7 +136,7 @@ estimators:
       sampler: "uniformint"
 ```
 
-The objective function is defined as follows:
+The objective function is defined as follows. The function takes in a configuration dictionary and returns a dictionary containing the accuracy and the time taken to evaluate the model.
 
 ```python
 import time
@@ -171,7 +176,7 @@ def objective(config):
     }
 ```
 
-Now, we can create a tuner object and run the optimization process:
+Now, we can load the search space, create a tuner object and run the optimization process:
 
 ```python
 search_space = SearchSpace("example.yaml")
