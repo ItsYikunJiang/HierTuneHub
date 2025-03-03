@@ -6,7 +6,7 @@ import optuna
 
 class TestOptuna:
     def test_optuna(self):
-        ss = hiertunehub.SearchSpace(config_file="./configs/example.yaml")
+        ss = hiertunehub.SearchSpace("./configs/example.yaml")
 
         def objective(trial):
             config = ss.to_optuna(trial)

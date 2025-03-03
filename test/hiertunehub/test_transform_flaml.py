@@ -52,5 +52,5 @@ XGBOOST_SEARCH_SPACE_FLAML = {
 
 class TestTransformFlaml:
     def test_transform_flaml(self):
-        new_config = SearchSpace._transform_flaml(XGBOOST_SEARCH_SPACE_FLAML)
-        assert isinstance(new_config, dict)
+        new_config = SearchSpace.from_flaml(XGBOOST_SEARCH_SPACE_FLAML)
+        assert isinstance(new_config, SearchSpace)

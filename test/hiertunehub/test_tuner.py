@@ -13,7 +13,7 @@ x, y = iris.data, iris.target
 
 
 class TestTuner:
-    search_space = SearchSpace(config_file="./configs/example.yaml")
+    search_space = SearchSpace("./configs/example.yaml")
 
     @staticmethod
     def objective(config):
