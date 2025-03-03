@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -14,7 +14,7 @@ description = "A Python package to provide unified interface for hierarchical hy
 authors = [
     {name = "Yikun Jiang", email = "jiangyikun9663@gmail.com"}
 ]
-license = "MIT"
+license = {file = "LICENSE"}
 requires-python = ">=3.8"
 dependencies = ["PyYAML"]
 readme = "README.md"
