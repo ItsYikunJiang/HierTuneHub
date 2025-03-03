@@ -17,6 +17,20 @@ you can use `HierTuneHub` to tune hyperparameters with popular optimization libr
 - Easy-to-use API
 - Support for optimization libraries including `Hyperopt`, `Optuna`, and `FLAML` (more to come!)
 
+## Installation
+
+Currently, `HierTuneHub` is not available on PyPI. You can install it from GitHub:
+
+```bash
+pip install git+https://github.com/ItsYikunJiang/HierTuneHub.git
+```
+
+After installation, you can import the package in your Python code:
+
+```python
+import hiertunehub
+```
+
 ## Usage
 
 ### Search Space
