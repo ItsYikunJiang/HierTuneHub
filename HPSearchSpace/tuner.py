@@ -5,10 +5,6 @@ from dataclasses import dataclass
 from .search_space import SearchSpace
 from .utils import add_prefix
 
-import hyperopt
-import optuna
-import flaml.tune
-
 
 @dataclass
 class Trial:
@@ -94,6 +90,15 @@ class Tuner:
 
 
 class HyperoptTuner(Tuner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        global hyperopt
+        try:
+            import hyperopt
+        except ImportError:
+            raise ImportError("Hyperopt is not installed. Please install hyperopt to use this tuner.")
+
     def wrap_objective(self, objective: Callable) -> Callable:
         @wraps(objective)
         def wrapped_objective(config: dict) -> dict:
@@ -164,6 +169,15 @@ class HyperoptTuner(Tuner):
 
 
 class OptunaTuner(Tuner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        global optuna
+        try:
+            import optuna
+        except ImportError:
+            raise ImportError("Optuna is not installed. Please install optuna to use this tuner.")
+
     def wrap_objective(self, objective: Callable) -> Callable:
         @wraps(objective)
         def wrapped_objective(trial: optuna.Trial):
@@ -239,6 +253,15 @@ class OptunaTuner(Tuner):
 
 
 class FlamlTuner(Tuner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        global flaml
+        try:
+            import flaml.tune
+        except ImportError:
+            raise ImportError("FLAML is not installed. Please install FLAML to use this tuner.")
+
     def run(self) -> None:
         if self.metric is None:
             result = flaml.tune.run(self.objective,

@@ -5,13 +5,15 @@ from .utils import (
 
 import sys
 if sys.version_info >= (3, 11):
-    from typing import Self, Union, Any
+    from typing import Self, Any, TYPE_CHECKING
 else:
     from typing import Any as Self
-    from typing import Union, Any
+    from typing import Any, TYPE_CHECKING
 
 import yaml
-import optuna
+
+if TYPE_CHECKING:
+    import optuna
 
 
 class SearchSpace:
@@ -20,45 +22,54 @@ class SearchSpace:
     """
 
     def __init__(self,
-                 config_file: str = None,
-                 config: Union[dict, list] = None,
-                 config_framework: str = None,
+                 config_path: str = None,
                  name: str = 'name',
                  sep: str = '?'
                  ):
         """
         Initialize the search space. You can either provide the configuration as a dictionary or as a YAML file.
         The input configuration should resemble certain structure. See example.yaml for an example.
-        :param config: A dictionary containing the configuration for the search space.
-        :param config_file: A YAML file containing the configuration for the search space.
-        :param config_framework: If provided, you should provide config dict which is in the format of the
-        specified config type. Supported types are "flaml" and "hyperopt".
+        :param config_path: A YAML file containing the configuration for the search space.
         :param name: The unique name key in the search space that will be used to identify different hyperparameters.
-        :param seq: The separator used to join the name key with the hyperparameter
+        :param sep: The separator used to join the name key with the hyperparameter
         """
-        if config is None and config_file is None:
-            raise ValueError("Either config or config_file must be provided")
-        if config is not None and config_file is not None:
-            raise ValueError("Only one of config or config_file must be provided")
-
-        if config is not None:
-            self.config = config
-        elif config_file is not None:
-            with open(config_file, 'r') as stream:
+        if config_path is not None:
+            with open(config_path, 'r') as stream:
                 self.config = yaml.safe_load(stream)
-
-        if config_framework is None:
-            self.config = self._parse_config(self.config)
+                self.config = self._parse_config(self.config)
         else:
-            if config_framework == 'flaml':
-                self.config = _transform_flaml(self.config)
-            elif config_framework == 'hyperopt':
-                self.config = _transform_hyperopt(self.config)
-            else:
-                raise ValueError(f"Config type {config_framework} not supported")
+            self.config = None
 
         self.name = name
         self.sep = sep
+
+    @classmethod
+    def from_dict(cls, config: dict, name: str = 'name', sep: str = '?') -> Self:
+        """
+        Initialize the search space from a dictionary resembling the YAML configuration.
+        :param config: A dictionary containing the configuration for the search space.
+        :param name: The unique name key in the search space that will be used to identify different hyperparameters.
+        :param sep: The separator used to join the name key with the hyperparameter
+        :return: SearchSpace object
+        """
+        search_space = cls(name=name, sep=sep)
+        search_space.config = config
+        search_space.config = search_space._parse_config(search_space.config)
+        return search_space
+
+    @classmethod
+    def from_flaml(cls, config: dict, name: str = 'name', sep: str = '?') -> Self:
+        """
+        Initialize the search space from a FLAML configuration.
+        :param config: A dictionary containing the configuration for the search space in FLAML format.
+        :param name: The unique name key in the search space that will be used to identify different hyperparameters.
+        :param sep: The separator used to join the name key with the hyperparameter
+        :return: SearchSpace object
+        """
+        search_space = cls(name=name, sep=sep)
+        search_space.config = _transform_flaml(config)
+        search_space.config = search_space._parse_config(search_space.config)
+        return search_space
 
     @staticmethod
     def _parse_config(config: Any) -> Any:
@@ -98,7 +109,7 @@ class SearchSpace:
         """
         return convert_to_hyperopt(self.config, name=self.name, sep=self.sep)
 
-    def to_optuna(self, trial: optuna.Trial) -> dict:
+    def to_optuna(self, trial: 'optuna.Trial') -> dict:
         """
         :param trial: An optuna trial object.
         :return: A dictionary that outputs a sample from the search space.
