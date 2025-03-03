@@ -1,14 +1,21 @@
 # HPSearchSpace
 
-HPSearchSpace is a Python library for defining search spaces for hyperparameter optimization problem.
+Are you tired of babysitting hyperparameter tuning process? 
+Are you confused by all the hyperparameter optimization libraries out there and don't know which one to choose?
+Are you struggling to translate your hierarchical search space (dependencies of different hyperparameters) into a format that can be used by different optimization libraries?
+Don't worry! `HPSearchSpace` is here to help you!
+
+By simply defining a search space in a YAML file,
+you can use `HPSearchSpace` to tune hyperparameters with popular optimization libraries including `Hyperopt`, `Optuna`, and `FLAML` (more to come!) with ease.
 
 ## Key Features
 
-- Support YAML file for defining search space.
-- Support hierarchical search space definition.
-- Support optimization libraries including [Hyperopt](https://github.com/hyperopt/hyperopt), 
-[Optuna](https://github.com/optuna/optuna)
-- and [FLAML](https://github.com/microsoft/FLAML).
+- Search space definition in a YAML file
+  - Support for multiple levels of hierarchy in the search space
+  - Support all types of hyperparameters including continuous, integer, and categorical
+- Unified interface for hyperparameter optimization libraries
+- Easy-to-use API
+- Support for optimization libraries including `Hyperopt`, `Optuna`, and `FLAML` (more to come!)
 
 ## Usage
 

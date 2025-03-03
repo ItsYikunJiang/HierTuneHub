@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["HPSearchSpace*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "HPSearchSpace.version.__version__"}
+
+[project]
+name = "HPSearchSpace"
+description = "A package for defining search spaces for hyperparameter optimization."
+authors = ["HPSearchSpace Developers"]
+license = "MIT"
+requires-python = ">=3.8"
+dependencies = ["PyYAML"]
+readme = "README.md"
+keywords = ["hyperparameter optimization", "search space", "unified interface"]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+opt = ["hyperopt", "optuna", "flaml"]
+
+[project.urls]
+Source = "1"
