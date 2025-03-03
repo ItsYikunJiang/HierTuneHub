@@ -3,7 +3,7 @@ import random
 import pytest
 import time
 
-from HPSearchSpace import SearchSpace, create_tuner
+from hiertunehub import SearchSpace, create_tuner
 
 from sklearn.datasets import load_iris
 from sklearn.model_selection import cross_val_score

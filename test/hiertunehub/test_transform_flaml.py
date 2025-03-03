@@ -1,6 +1,6 @@
 from flaml import tune
 
-from HPSearchSpace import SearchSpace
+from hiertunehub import SearchSpace
 
 upper = max(5, min(32768, 1000))  # upper must be larger than lower
 

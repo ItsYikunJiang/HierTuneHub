@@ -1,12 +1,12 @@
-# HPSearchSpace
+# HierTuneHub
 
 Are you tired of babysitting hyperparameter tuning process? 
 Are you confused by all the hyperparameter optimization libraries out there and don't know which one to choose?
 Are you struggling to translate your hierarchical search space (dependencies of different hyperparameters) into a format that can be used by different optimization libraries?
-Don't worry! `HPSearchSpace` is here to help you!
+Don't worry! `HierTuneHub` is here to help you!
 
-By simply defining a search space in a YAML file,
-you can use `HPSearchSpace` to tune hyperparameters with popular optimization libraries including `Hyperopt`, `Optuna`, and `FLAML` (more to come!) with ease.
+By simply defining a search space in a YAML file and black-box objective function,
+you can use `HierTuneHub` to tune hyperparameters with popular optimization libraries including `Hyperopt`, `Optuna`, and `FLAML` (more to come!) with ease.
 
 ## Key Features
 
@@ -37,7 +37,7 @@ In the sampling process, one of the items is randomly selected.
   - A unique character string that is not present in any other keys. It is used to concatenate the keys to form a unique identifier. 
   Default is `?`, or you can use other characters such as `!` and pass `sep="!"` to the `SearchSpace` constructor.
 
-The following types of samplers are supported in `HPSearchSpace`:
+The following types of samplers are supported in `HierTuneHub`:
 - `uniform`: Uniform distribution
 - `loguniform`: Log-uniform distribution
 - `quniform`: Quantized uniform distribution
@@ -56,7 +56,7 @@ The following types of samplers are supported in `HPSearchSpace`:
 
 ### Hyperparameter Tuning
 
-After you define the search space, you can use it for hyperparameter optimization. `HPSearchSpace` provides a unified interface for hyperparameter optimization libraries including `Hyperopt`, `Optuna`, and `FLAML`.
+After you define the search space, you can use it for hyperparameter optimization. `HierTuneHub` provides a unified interface for hyperparameter optimization libraries including `Hyperopt`, `Optuna`, and `FLAML`.
 
 You need to define your own objective function that takes in a sampled configuration and returns either a single score or a dictionary containing scores and other information.
 
@@ -97,7 +97,7 @@ It is a list of `Trial` objects which contains `params` and `result` attributes 
 ## Example
 
 The following is an example of iris dataset classification problem. 
-We want to tune hyperparameters for different classifiers using unified interface provided by `HPSearchSpace` to find the best hyperparameters that maximize the accuracy.
+We want to tune hyperparameters for different classifiers using unified interface provided by `HierTuneHub` to find the best hyperparameters that maximize the accuracy.
 
 The search space is defined in a YAML file as follows. 
 It consists of four classifiers: `SVC`, `RandomForestClassifier`, `GradientBoostingClassifier`, and `KNeighborsClassifier`.
@@ -186,6 +186,8 @@ def objective(config):
 Now, we can load the search space, create a tuner object and run the optimization process:
 
 ```python
+from hiertunehub import SearchSpace, create_tuner
+
 search_space = SearchSpace("example.yaml")
 hyperopt_tuner = create_tuner(objective,
                               search_space,

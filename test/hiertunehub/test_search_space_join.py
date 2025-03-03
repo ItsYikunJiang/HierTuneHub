@@ -1,11 +1,11 @@
 import pytest
 
-import HPSearchSpace
+import hiertunehub
 
 
 class TestJoin:
     def test_join_1(self):
-        search_space = HPSearchSpace.SearchSpace(config_file="./configs/example.yaml")
+        search_space = hiertunehub.SearchSpace(config_file="./configs/example.yaml")
 
         another_config = {
             'estimators': {
@@ -20,7 +20,7 @@ class TestJoin:
             }
         }
 
-        another_search_space = HPSearchSpace.SearchSpace(config=another_config)
+        another_search_space = hiertunehub.SearchSpace(config=another_config)
 
         search_space.join(another_search_space)
 
@@ -38,7 +38,7 @@ class TestJoin:
         )
 
     def test_join_2(self):
-        search_space = HPSearchSpace.SearchSpace(config_file="./configs/example.yaml")
+        search_space = hiertunehub.SearchSpace(config_file="./configs/example.yaml")
 
         another_config = {
             'estimators_another': {
@@ -53,7 +53,7 @@ class TestJoin:
             }
         }
 
-        another_search_space = HPSearchSpace.SearchSpace(config=another_config)
+        another_search_space = hiertunehub.SearchSpace(config=another_config)
 
         another_search_space.join(search_space)
 

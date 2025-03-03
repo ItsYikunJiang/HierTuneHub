@@ -1,11 +1,11 @@
 import pytest
 
-import HPSearchSpace
+import hiertunehub
 
 
 class TestSelect:
     def test_select(self):
-        search_space = HPSearchSpace.SearchSpace(config_file="./configs/example.yaml")
+        search_space = hiertunehub.SearchSpace(config_file="./configs/example.yaml")
 
         selection = {
             "estimators": ["sklearn.svm.SVC", "sklearn.ensemble.RandomForestClassifier"]

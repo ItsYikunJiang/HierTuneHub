@@ -1,12 +1,12 @@
 import pytest
 
-import HPSearchSpace
+import hiertunehub
 import optuna
 
 
 class TestOptuna:
     def test_optuna(self):
-        ss = HPSearchSpace.SearchSpace(config_file="./configs/example.yaml")
+        ss = hiertunehub.SearchSpace(config_file="./configs/example.yaml")
 
         def objective(trial):
             config = ss.to_optuna(trial)
