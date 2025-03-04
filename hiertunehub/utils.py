@@ -1,11 +1,13 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
+import math
 
-import flaml.tune
-import flaml.tune.sample
-import hyperopt.pyll
-from hyperopt import hp
-from hyperopt.pyll import scope
-import optuna
+if TYPE_CHECKING:
+    import flaml.tune
+    import flaml.tune.sample
+    import hyperopt.pyll
+    from hyperopt import hp
+    from hyperopt.pyll import scope
+    import optuna
 
 
 def add_prefix(prefix: str, name: str, sep: str) -> str:
@@ -40,13 +42,13 @@ def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', se
         new_config = list()
         for item in param_cfg:
             new_config.append(convert_to_hyperopt(item, prefix, name, sep))
-        return hp.choice(prefix + sep + 'name', new_config)
+        return hyperopt.hp.choice(prefix + sep + 'name', new_config)
 
     else:
         return param_cfg
 
 
-def convert_to_optuna(trial: optuna.Trial, param_cfg: Any,
+def convert_to_optuna(trial: 'optuna.Trial', param_cfg: Any,
                       prefix: str = '', name: str = 'name', sep: str = '?') -> dict:
     param_cfg = param_cfg.copy()
 
@@ -76,6 +78,9 @@ def convert_to_optuna(trial: optuna.Trial, param_cfg: Any,
 
 
 def convert_to_flaml(param_cfg: Any, name: str = 'name') -> Any:
+    if not isinstance(param_cfg, dict) and not isinstance(param_cfg, list):
+        return param_cfg
+
     param_cfg = param_cfg.copy()
 
     if isinstance(param_cfg, dict):
@@ -111,7 +116,7 @@ def get_sampler(
         arg: list,
         sampler: str,
         sample_name: str = "",
-        trial: optuna.Trial = None) -> Any:
+        trial: 'optuna.Trial' = None) -> Any:
     # match package_name:
     #     case "flaml":
     #         return get_flaml_sampler(arg, sampler)
@@ -131,7 +136,7 @@ def get_sampler(
         raise ValueError(f"Package {package_name} not supported")
 
 
-def get_flaml_sampler(arg: list, sampler: str) -> flaml.tune.sample.Domain:
+def get_flaml_sampler(arg: list, sampler: str) -> 'flaml.tune.sample.Domain':
     # match sampler:
     #     case "uniform":
     #         return flaml.tune.uniform(*arg)
@@ -175,7 +180,13 @@ def get_flaml_sampler(arg: list, sampler: str) -> flaml.tune.sample.Domain:
         raise ValueError(f"Sampler {sampler} not supported")
 
 
-def get_hyperopt_sampler(arg: list, sampler: str, sample_name: str) -> hyperopt.pyll.Apply:
+def get_hyperopt_sampler(arg: list, sampler: str, sample_name: str) -> 'hyperopt.pyll.Apply':
+    global hyperopt
+    try:
+        import hyperopt.pyll
+        import hyperopt.hp
+    except ImportError:
+        raise ImportError("Hyperopt is not installed. Please install it using `pip install hyperopt`")
     # match sampler:
     #     case "uniform":
     #         return hp.uniform(sample_name, *arg)
@@ -198,23 +209,23 @@ def get_hyperopt_sampler(arg: list, sampler: str, sample_name: str) -> hyperopt.
     #     case _:
     #         raise ValueError(f"Sampler {sampler} not supported")
     if sampler == "uniform":
-        return hp.uniform(sample_name, *arg)
+        return hyperopt.hp.uniform(sample_name, *arg)
     elif sampler == "loguniform":
-        return hp.loguniform(sample_name, *arg)
+        return hyperopt.hp.loguniform(sample_name, math.log(arg[0]), math.log(arg[1]))
     elif sampler == "quniform":
-        return hp.quniform(sample_name, *arg)
+        return hyperopt.hp.quniform(sample_name, *arg)
     elif sampler == "qloguniform":
-        return hp.qloguniform(sample_name, *arg)
+        return hyperopt.hp.qloguniform(sample_name, math.log(arg[0]), math.log(arg[1]), arg[2])
     elif sampler == "uniformint":
-        return hp.randint(sample_name, *arg)
+        return hyperopt.hp.randint(sample_name, *arg)
     elif sampler == "quniformint":
-        return scope.int(hp.quniform(sample_name, *arg))
+        return hyperopt.pyll.scope.int(hyperopt.hp.quniform(sample_name, *arg))
     elif sampler == "loguniformint":
-        return scope.int(hp.loguniform(sample_name, *arg))
+        return hyperopt.pyll.scope.int(hyperopt.hp.loguniform(sample_name, math.log(arg[0]), math.log(arg[1])))
     elif sampler == "qloguniformint":
-        return scope.int(hp.qloguniform(sample_name, *arg))
+        return hyperopt.pyll.scope.int(hyperopt.hp.qloguniform(sample_name, math.log(arg[0]), math.log(arg[1]), arg[2]))
     elif sampler == "choice":
-        return hp.choice(sample_name, arg)
+        return hyperopt.hp.choice(sample_name, arg)
     else:
         raise ValueError(f"Sampler {sampler} not supported")
 
@@ -222,7 +233,7 @@ def get_hyperopt_sampler(arg: list, sampler: str, sample_name: str) -> hyperopt.
 def get_optuna_sampler(arg: list,
                        sampler: str,
                        sample_name: str,
-                       trial: optuna.Trial) -> Any:
+                       trial: 'optuna.Trial') -> Any:
     # match sampler:
     #     case "uniform":
     #         return trial.suggest_float(sample_name, *arg)
@@ -251,7 +262,7 @@ def get_optuna_sampler(arg: list,
     elif sampler == "quniform":
         return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2])
     elif sampler == "qloguniform":
-        return trial.suggest_float(sample_name, arg[0], arg[1], step=arg[2], log=True)
+        return round(trial.suggest_float(sample_name, arg[0], arg[1], log=True) / arg[2]) * arg[2]
     elif sampler == "uniformint":
         return trial.suggest_int(sample_name, *arg)
     elif sampler == "quniformint":
@@ -259,7 +270,7 @@ def get_optuna_sampler(arg: list,
     elif sampler == "loguniformint":
         return trial.suggest_int(sample_name, arg[0], arg[1], log=True)
     elif sampler == "qloguniformint":
-        return trial.suggest_int(sample_name, arg[0], arg[1], step=arg[2], log=True)
+        return int(trial.suggest_int(sample_name, arg[0], arg[1], log=True) / arg[2]) * arg[2]
     elif sampler == "choice":
         return trial.suggest_categorical(sample_name, arg)
     else:
@@ -275,7 +286,7 @@ def get_estimator_class(estimator_name: str) -> Any:
     return eval(estimator_name)
 
 
-def _match_flaml_domain(domain: flaml.tune.sample.Domain) -> dict:
+def _match_flaml_domain(domain: 'flaml.tune.sample.Domain') -> dict:
     """
     Match the FLAML domain to the definition used in this library.
     """
@@ -292,8 +303,8 @@ def _match_flaml_domain(domain: flaml.tune.sample.Domain) -> dict:
 
     if sampler.__class__.__name__ == 'Quantized':
         sampler_name += 'q'
-        sampler = sampler.sampler
         args += [sampler.q]
+        sampler = sampler.sampler
 
     sampler_name += sampler.__class__.__name__.lower()[1:]
 
@@ -315,6 +326,13 @@ def _transform_flaml(config: Any) -> Any:
     """
     Transform the configuration from FLAML format to the format used in this library.
     """
+    global flaml
+    try:
+        import flaml.tune
+        import flaml.tune.sample
+    except ImportError:
+        raise ImportError("FLAML is not installed. Please install it using `pip install flaml`")
+
     try:
         import ray.tune.search.sample
         domain_class = ray.tune.search.sample.Domain

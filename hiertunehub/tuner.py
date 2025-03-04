@@ -88,6 +88,13 @@ class Tuner:
         """
         return self.best_trial.result
 
+    @property
+    def results(self) -> list:
+        """
+        :return: The results of all trials performed by the tuner.
+        """
+        return [trial.result for trial in self._trials]
+
 
 class HyperoptTuner(Tuner):
     def __init__(self, *args, **kwargs):
@@ -194,7 +201,12 @@ class OptunaTuner(Tuner):
 
     def run(self) -> None:
         mode_optuna = "minimize" if self.mode == "min" else "maximize"
-        study = optuna.create_study(direction=mode_optuna)
+        study_params = dict()
+        study_params['sampler'] = self.framework_params.pop('sampler', None)
+        study_params['pruner'] = self.framework_params.pop('pruner', None)
+        study_params['study_name'] = self.framework_params.pop('study_name', None)
+
+        study = optuna.create_study(direction=mode_optuna, **study_params)
 
         wrapped_optuna_objective = self.wrap_objective(self.objective)
         study.optimize(wrapped_optuna_objective,
@@ -296,7 +308,7 @@ class FlamlTuner(Tuner):
         if self.metric is None:
             return result['_metric']
         else:
-            for key_to_move in ['config', 'config/estimators', 'experiment_tag', 'time_total_s', 'training_iteration']:
+            for key_to_move in ['experiment_tag', 'time_total_s', 'training_iteration']:
                 result.pop(key_to_move, None)
             return result
 
