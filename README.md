@@ -68,9 +68,14 @@ The following types of samplers are supported in `HierTuneHub`:
 - `to_optuna`: Convert the search space to `Optuna`. You need to pass in an `Optuna.Trial` object.
 - `to_flaml`: Convert the search space to a dict for `FLAML`.
 
+`SearchSpace` also provides the following class methods:
+- `from_dict`: Create a `SearchSpace` object from a dictionary resembling the YAML configuration.
+- `from_flaml`: Create a `SearchSpace` object from a FLAML configuration.
+
 ### Hyperparameter Tuning
 
-After you define the search space, you can use it for hyperparameter optimization. `HierTuneHub` provides a unified interface for hyperparameter optimization libraries including `Hyperopt`, `Optuna`, and `FLAML`.
+After you define the search space, you can use it for hyperparameter optimization. 
+`HierTuneHub` provides a unified interface for hyperparameter optimization libraries including `Hyperopt`, `Optuna`, and `FLAML`.
 
 You need to define your own objective function that takes in a sampled configuration and returns either a single score or a dictionary containing scores and other information.
 
@@ -107,6 +112,16 @@ After the optimization process is finished, you can get the best hyperparameters
 
 You can also call `trials` property to get all the trials evaluated during the optimization process. 
 It is a list of `Trial` objects which contains `params` and `result` attributes corresponding to the sampled configuration and the result of objective function.
+
+`Tuner` class also provides `results` property to get all the results evaluated during the optimization process in a list.
+
+Note for passing additional parameters (`framework_params` and `kwargs`) to the optimization libraries:
+- `optuna`:
+  - `sampler`, `pruner` and `study_name` are passed to `optuna.create_study` function. Other parameters are passed to `optuna.study.optimize` function.
+- `hyperopt`:
+  - all parameters are passed to `hyperopt.fmin` function.
+- `FLAML`:
+  - all parameters are passed to `flaml.tune.run` function.
 
 ## Example
 
