@@ -95,6 +95,81 @@ class Tuner:
         """
         return [trial.result for trial in self._trials]
 
+    def result_to_file(self, name: str, path_to_file: str,
+                       uuid: bool = True,
+                       dump_short: bool = True,
+                       include_result_keys: list = None) -> None:
+        """
+        Save the results of the tuner to a file.
+        :param name: The name of the file.
+        :param path_to_file: The path to the file where the results will be saved.
+        :param uuid: Whether to add a unique identifier to the file name.
+        :param dump_short: Whether to dump only the metric value or the full result dictionary.
+        :param include_result_keys: A list of keys to include in the result dictionary.
+        """
+        import json
+        import os
+
+        if not os.path.exists(path_to_file):
+            os.makedirs(path_to_file)
+
+        # Specify file name
+        if uuid:
+            import uuid
+            uuid_file = uuid.uuid4()
+            full_path = f"{path_to_file}/{name}_{uuid_file}.json"
+        else:
+            full_path = f"{path_to_file}/{name}.json"
+
+        # Test if file exists. If it does, generate another uuid or raise an error
+        while os.path.exists(full_path):
+            if uuid:
+                uuid_file = uuid.uuid4()
+                full_path = f"{path_to_file}/{name}_{uuid_file}.json"
+            else:
+                raise FileExistsError(f"File {full_path} already exists")
+
+        if not dump_short:
+            out = [
+                {
+                    'params': trial.params,
+                    'result': trial.result
+                } for trial in self._trials
+            ]
+        else:
+            out = [
+                {
+                    'params': trial.params,
+                    'result': trial.result if self.metric is None else trial.result[self.metric]
+                } for trial in self._trials
+            ]
+
+        if include_result_keys is not None:
+            out = [
+                {
+                    'params': trial.params,
+                    'result': {key: trial.result.get(key, None) for key in include_result_keys}
+                } for trial in self._trials
+            ]
+
+        with open(full_path, 'w') as file:
+            json.dump(out, file, indent=4, default=Tuner._dump_default)
+
+    @staticmethod
+    def _dump_default(obj):
+        global numpy
+        try:
+            import numpy
+        except ImportError:
+            numpy = None
+        if isinstance(obj, numpy.integer):
+            return int(obj)
+        if isinstance(obj, numpy.floating):
+            return float(obj)
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        return "<not serializable>"
+
 
 class HyperoptTuner(Tuner):
     def __init__(self, *args, **kwargs):
