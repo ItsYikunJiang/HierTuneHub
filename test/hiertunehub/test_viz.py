@@ -67,7 +67,7 @@ class TestViz:
 
         t_start = time.time()
 
-        for i in range(10):
+        for i in range(20):
             t1 = time.time()
             tuner = create_tuner(objective=objective,
                                  search_space=self.search_space,
@@ -99,7 +99,7 @@ class TestViz:
 
         result_paths = ["./results", "./results_rand"]
         names = ['tpe', 'rand']
-        rv = ResultVisualizer(result_paths=result_paths, metric="acc", names=names)
+        rv = ResultVisualizer(result_paths=result_paths, metric="acc", mode='max', names=names)
         rv.plot()
 
         t_end = time.time()
@@ -109,5 +109,5 @@ class TestViz:
         from hiertunehub.viz import ResultVisualizer
         result_paths = ["./results", "./results_rand"]
         names = ['tpe', 'rand']
-        rv = ResultVisualizer(result_paths=result_paths, metric="acc", names=names)
+        rv = ResultVisualizer(result_paths=result_paths, metric="acc", mode='max', names=names)
         rv.plot(y_label="Accuracy")
