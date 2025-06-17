@@ -19,10 +19,10 @@ you can use `HierTuneHub` to tune hyperparameters with popular optimization libr
 
 ## Installation
 
-Currently, `HierTuneHub` is not available on PyPI. You can install it from GitHub:
+You can install `HierTuneHub` using pip.
 
 ```bash
-pip install git+https://github.com/ItsYikunJiang/HierTuneHub.git
+pip install hiertunehub
 ```
 
 After installation, you can import the package in your Python code:
