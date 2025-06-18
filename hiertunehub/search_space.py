@@ -1,9 +1,10 @@
 from .utils import (
     convert_to_hyperopt, convert_to_optuna, convert_to_flaml,
-    _transform_flaml, _transform_hyperopt
+    _transform_flaml, _transform_hyperopt, add_prefix
 )
 
 import sys
+
 if sys.version_info >= (3, 11):
     from typing import Self, Any, TYPE_CHECKING
 else:
@@ -131,4 +132,50 @@ class SearchSpace:
         self.config.update(other_search_space.config)
         return self
 
+    def point_to_hyperopt_representation(self,
+                                         config: dict,
+                                         ) -> dict:
+        """
+        Convert a sampled point in the search space to a hyperopt representation.
+        :param config: A dictionary representing a sampled point in the search space.
+        """
+        return self._point_to_hyperopt_representation(config)
 
+    def _point_to_hyperopt_representation(self,
+                                          config: dict,
+                                          prefix: str = '',
+                                          ss: dict = None,
+                                          ) -> dict:
+        if ss is None:
+            ss = self.config
+        out = dict()
+        for k, v in config.items():
+            prefix_k = add_prefix(prefix, k, self.sep)
+
+            if isinstance(v, dict):
+                if self.name in v.keys():
+                    name_val = v.pop(self.name)
+                    name_key = add_prefix(prefix_k, name_val, self.sep)
+                    prefix_sep = prefix_k.split(self.sep)
+                    for pref in prefix_sep:
+                        if pref not in ss:
+                            pass
+                        else:
+                            ss = ss[pref]
+                    # Now ss should be a list of dict
+                    for i, s in enumerate(ss):
+                        if s[self.name] == name_val:
+                            out[add_prefix(prefix_k, self.name, self.sep)] = i
+                            break
+                    if v:
+                        out.update(self._point_to_hyperopt_representation(v, prefix=name_key, ss=s))
+            else:
+                if ss[k]['sampler'] == 'choice':
+                    for i, value in enumerate(ss[k]['args']):
+                        if value == v:
+                            out[prefix_k] = i
+                            break
+                else:
+                    out[prefix_k] = v
+
+        return out

@@ -18,6 +18,7 @@ class Tuner:
                  search_space: SearchSpace,
                  mode: str = "min",
                  metric: Optional[str] = None,
+                 init_config: Optional[list[dict]] = None,
                  framework: str = "hyperopt",
                  framework_params: dict = None,
                  **kwargs
@@ -30,6 +31,7 @@ class Tuner:
         :param mode: The optimization mode. Either 'min' or 'max'.
         :param metric: If the objective function returns a dictionary, the metric key specifies the key to be used for
         optimization.
+        :param init_config: The initial configuration to be used for the tuning process.
         :param framework: The framework to be used for optimization. Supported frameworks are "hyperopt", "optuna", and
         "flaml".
         :param framework_params: Additional parameters to be passed to the framework tuning function.
@@ -53,6 +55,8 @@ class Tuner:
         self._trials = list()
         self.best_trial = None
 
+        # TODO: Add support for init_config
+
     def wrap_objective(self, objective: Callable) -> Callable:
         """
         Wrap the objective function to return the result in the format expected by the framework.
@@ -66,6 +70,22 @@ class Tuner:
         Run the optimization process.
         """
         raise NotImplementedError
+
+    def resume_from_results(self, results: Union[str, list[dict]]) -> None:
+        """
+        Resume the optimization process from a saved state.
+        :param results: A list containing the results of previous trials or a path to a file containing the saved results.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def load_result(result_path: str) -> list[dict]:
+        """
+        Load the results from a saved state.
+        :param result_path: The path to the file containing the saved results.
+        """
+        import json
+        return json.load(open(result_path, 'r'))
 
     @property
     def trials(self):
@@ -181,6 +201,8 @@ class HyperoptTuner(Tuner):
         except ImportError:
             raise ImportError("Hyperopt is not installed. Please install hyperopt to use this tuner.")
 
+        self.hp_trials = hyperopt.Trials()
+
     def wrap_objective(self, objective: Callable) -> Callable:
         @wraps(objective)
         def wrapped_objective(config: dict) -> dict:
@@ -203,28 +225,104 @@ class HyperoptTuner(Tuner):
         return wrapped_objective
 
     def run(self) -> None:
-        trials = hyperopt.Trials()
         hyperopt_space = self.search_space.to_hyperopt()
 
         wrapped_hyperopt_objective = self.wrap_objective(self.objective)
 
-        result = hyperopt.fmin(wrapped_hyperopt_objective,
-                               hyperopt_space,
-                               trials=trials,
-                               **self.framework_params)
+        hp_result = hyperopt.fmin(wrapped_hyperopt_objective,
+                                  hyperopt_space,
+                                  trials=self.hp_trials,
+                                  **self.framework_params)
 
-        best_result = self._parse_result(trials.best_trial['result'])
+        best_result = self._parse_result(self.hp_trials.best_trial['result'])
 
-        self.best_trial = Trial(params=hyperopt.space_eval(hyperopt_space, result),
+        self.best_trial = Trial(params=hyperopt.space_eval(hyperopt_space, hp_result),
                                 result=best_result)
 
-        for trial in trials.trials:
+        for trial in self.hp_trials.trials:
             self._trials.append(
                 Trial(
                     params=hyperopt.space_eval(hyperopt_space, self._parse_misc_vals(trial['misc']['vals'])),
                     result=self._parse_result(trial['result'])
                 )
             )
+
+    def resume_from_results(self, results: Union[str, list[dict]]) -> None:
+        past_results = self.load_result(results) if isinstance(results, str) else results
+        if not past_results:
+            raise ValueError("No results to resume from")
+
+        points = [trial['params'] for trial in past_results]
+        results = [self.wrap_objective(lambda config: trial['result'])(trial['params']) for trial in past_results]
+
+        self.hp_trials = self._generate_trials(points, results)
+        self.hp_trials.refresh()
+
+        self.run()
+
+    def _generate_trials(
+            self,
+            points: list,
+            results: Optional[list] = None
+    ) -> "hyperopt.Trials":
+        """
+        Generate a new Trials object with a list of points to evaluate.
+        If results are provided, they will be added to the Trials object and no evaluation will be performed.
+        """
+
+        def _generate_trial(tid_: int,
+                            idxs_: dict,
+                            vals_: dict,
+                            result: Optional[dict] = None
+                            ) -> dict:
+            """
+            Generate a single trial dictionary with the given trial id and search space.
+            """
+            doc = {
+                "state": 0,  # hyperopt.JOB_STATE_NEW
+                "tid": tid_,
+                "spec": None,
+                "result": {"status": "new"},
+                "misc": {
+                    "tid": tid_,
+                    "cmd": ("domain_attachment", "FMinIter_Domain"),
+                    "workdir": None,
+                    "idxs": idxs_,
+                    "vals": vals_,
+                },
+                "exp_key": None,
+                "owner": None,
+                "version": 0,
+                "book_time": None,
+                "refresh_time": None,
+            }
+
+            if result is not None:
+                doc['result'] = result
+                doc['state'] = 2  # hyperopt.JOB_STATE_DONE
+
+            return doc
+
+        trials = hyperopt.Trials()
+        domain_temp = hyperopt.Domain(lambda x: None, self.search_space.to_hyperopt())
+        keys = domain_temp.params.keys()
+        new_docs = []
+        for i, point in enumerate(points):
+            point_hp = self.search_space.point_to_hyperopt_representation(point)
+            idxs = {key: [] for key in keys}
+            vals = {key: [] for key in keys}
+            for k, v in point_hp.items():
+                idxs[k] = [i]
+                vals[k] = [v]
+            new_doc = _generate_trial(
+                i,
+                idxs,
+                vals,
+                results[i]
+            )
+            new_docs.append(new_doc)
+        trials.insert_trial_docs(new_docs)
+        return trials
 
     @staticmethod
     def _parse_misc_vals(vals: dict) -> dict:
@@ -393,6 +491,7 @@ def create_tuner(
         search_space: SearchSpace,
         mode: str = "min",
         metric: Optional[str] = None,
+        init_config: Optional[list[dict]] = None,
         framework: str = "hyperopt",
         framework_params: dict = None,
         **kwargs
@@ -405,6 +504,7 @@ def create_tuner(
     :param mode: The optimization mode. Either 'min' or 'max'.
     :param metric: If the objective function returns a dictionary, the metric key specifies the key to be used for
     optimization.
+    :param init_config: The initial configuration to be used for the tuning process.
     :param framework: The framework to be used for optimization. Supported frameworks are "hyperopt", "optuna", and
     "flaml".
     :param framework_params: Additional parameters to be passed to the framework tuning function.
