@@ -137,6 +137,8 @@ def get_sampler(
 
 
 def get_flaml_sampler(arg: list, sampler: str) -> 'flaml.tune.sample.Domain':
+    global flaml
+    import flaml.tune
     # match sampler:
     #     case "uniform":
     #         return flaml.tune.uniform(*arg)

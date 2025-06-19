@@ -352,11 +352,14 @@ class OptunaTuner(Tuner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        global optuna
+        global optuna, op_dis
         try:
             import optuna
+            import optuna.distributions as op_dis
         except ImportError:
             raise ImportError("Optuna is not installed. Please install optuna to use this tuner.")
+
+        self.study = None
 
     def wrap_objective(self, objective: Callable) -> Callable:
         @wraps(objective)
@@ -372,7 +375,10 @@ class OptunaTuner(Tuner):
 
         return wrapped_objective
 
-    def run(self) -> None:
+    def _create_or_load_study(self) -> 'optuna.Study':
+        if self.study is not None:
+            return self.study
+
         mode_optuna = "minimize" if self.mode == "min" else "maximize"
         study_params = dict()
         study_params['sampler'] = self.framework_params.pop('sampler', None)
@@ -380,16 +386,21 @@ class OptunaTuner(Tuner):
         study_params['study_name'] = self.framework_params.pop('study_name', None)
 
         study = optuna.create_study(direction=mode_optuna, **study_params)
+        return study
+
+    def run(self) -> None:
+        self.study = self._create_or_load_study()
 
         wrapped_optuna_objective = self.wrap_objective(self.objective)
-        study.optimize(wrapped_optuna_objective,
-                       **self.framework_params)
+        self.study.optimize(wrapped_optuna_objective,
+                            **self.framework_params)
 
-        self._params = study.best_trial.params.copy()
-        self.best_trial = Trial(params=self._parse_params(study.best_trial.params),
-                                result=study.best_trial.value if self.metric is None else study.best_trial.user_attrs)
+        self._params = self.study.best_trial.params.copy()
+        self.best_trial = Trial(params=self._parse_params(self.study.best_trial.params),
+                                result=self.study.best_trial.value
+                                if self.metric is None else self.study.best_trial.user_attrs)
 
-        for trial in study.trials:
+        for trial in self.study.trials:
             self._params = trial.params.copy()
             self._trials.append(
                 Trial(
@@ -436,6 +447,36 @@ class OptunaTuner(Tuner):
 
         return out
 
+    def resume_from_results(self, results: Union[str, list[dict]]) -> None:
+        past_results = self.load_result(results) if isinstance(results, str) else results
+        self.study = self._create_or_load_study()
+
+        for i, trial in enumerate(past_results):
+            params = trial['params']
+            result = trial['result']
+            if self.metric is not None:
+                value = result[self.metric] if self.metric in result else result
+                user_attrs = result
+            else:
+                value = result
+                user_attrs = None
+
+            op_params, op_distribution = self.search_space.point_to_optuna_representation(params)
+
+            # Create a new Optuna trial
+            optuna_trial = optuna.create_trial(
+                params=op_params,
+                distributions=op_distribution,
+                value=value,
+                user_attrs=user_attrs,
+            )
+
+            self.study.add_trial(optuna_trial)
+
+        if 'n_trials' in self.framework_params:
+            self.framework_params['n_trials'] -= len(past_results)
+
+        self.run()
 
 class FlamlTuner(Tuner):
     def __init__(self, *args, **kwargs):
@@ -484,6 +525,33 @@ class FlamlTuner(Tuner):
             for key_to_move in ['experiment_tag', 'time_total_s', 'training_iteration']:
                 result.pop(key_to_move, None)
             return result
+
+    def resume_from_results(self, results: Union[str, list[dict]]) -> None:
+        past_results = self.load_result(results) if isinstance(results, str) else results
+
+        points_evaluated = []
+        rewards = []
+        for trial in past_results:
+            points_evaluated.append(trial['params'])
+            result = trial['result']
+            if isinstance(result, dict):
+                rewards.append(result[self.metric])
+            else:
+                rewards.append(result)
+
+            self._trials.append(
+                Trial(
+                    params=trial['params'],
+                    result=result
+                )
+            )
+
+        self.framework_params['points_to_evaluate'] = points_evaluated
+        self.framework_params['evaluated_rewards'] = rewards
+        if 'num_samples' in self.framework_params:
+            self.framework_params['num_samples'] -= len(past_results)
+
+        self.run()
 
 
 def create_tuner(

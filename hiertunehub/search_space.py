@@ -15,6 +15,7 @@ import yaml
 
 if TYPE_CHECKING:
     import optuna
+    import optuna.distributions as op_dis
 
 
 class SearchSpace:
@@ -138,6 +139,7 @@ class SearchSpace:
         """
         Convert a sampled point in the search space to a hyperopt representation.
         :param config: A dictionary representing a sampled point in the search space.
+        :return: A dictionary that represents the sampled params in hyperopt format.
         """
         return self._point_to_hyperopt_representation(config)
 
@@ -179,3 +181,83 @@ class SearchSpace:
                     out[prefix_k] = v
 
         return out
+
+    def point_to_optuna_representation(self,
+                                       config: dict) -> tuple[dict, dict]:
+        """
+        Convert a sampled point in the search space to an optuna representation.
+        :param config: A dictionary representing a sampled point in the search space.
+        :return: A tuple containing the params dict and distributions dict for optuna.
+        """
+        return self._point_to_optuna_representation(config)
+
+    def _point_to_optuna_representation(self,
+                                        config: dict,
+                                        prefix: str = '',
+                                        ss: dict = None,
+                                        ) -> tuple[dict, dict]:
+        global op_dis
+        import optuna.distributions as op_dis
+        if ss is None:
+            ss = self.config
+        out_p = dict()
+        out_d = dict()
+        for k, v in config.items():
+            prefix_k = add_prefix(prefix, k, self.sep)
+
+            if isinstance(v, dict):
+                if self.name in v.keys():
+                    name_val = v.get(self.name)
+                    name_key = add_prefix(prefix_k, name_val, self.sep)
+                    prefix_sep = prefix_k.split(self.sep)
+                    for pref in prefix_sep:
+                        if pref not in ss:
+                            pass
+                        else:
+                            ss = ss[pref]
+                    # Now ss should be a list of dict
+                    out_d[prefix_k] = op_dis.CategoricalDistribution(
+                        choices=ss
+                    )
+                    for i, s in enumerate(ss):
+                        if s[self.name] == name_val:
+                            out_p[prefix_k] = s
+                            break
+                    if v:
+                        v_out_p, v_out_d = self._point_to_optuna_representation(v, prefix=name_key, ss=s)
+                        out_p.update(v_out_p)
+                        out_d.update(v_out_d)
+            elif k == self.name:
+                pass
+            else:
+                out_p[prefix_k] = v
+                out_d[prefix_k] = _get_optuna_distribution(ss[k])
+
+        return out_p, out_d
+
+
+def _get_optuna_distribution(args_and_sampler: dict) -> 'op_dis.BaseDistribution':
+    global op_dis
+    import optuna.distributions as op_dis
+    arg = args_and_sampler['args']
+    sampler = args_and_sampler['sampler']
+    if sampler == "uniform":
+        return op_dis.FloatDistribution(low=arg[0], high=arg[1])
+    elif sampler == "loguniform":
+        return op_dis.FloatDistribution(low=arg[0], high=arg[1], log=True)
+    elif sampler == "quniform":
+        return op_dis.FloatDistribution(low=arg[0], high=arg[1], step=arg[2])
+    elif sampler == "qloguniform":
+        return op_dis.FloatDistribution(low=arg[0], high=arg[1], log=True)
+    elif sampler == "uniformint":
+        return op_dis.IntDistribution(low=arg[0], high=arg[1])
+    elif sampler == "quniformint":
+        return op_dis.IntDistribution(low=arg[0], high=arg[1], step=arg[2])
+    elif sampler == "loguniformint":
+        return op_dis.IntDistribution(low=arg[0], high=arg[1], log=True)
+    elif sampler == "qloguniformint":
+        return op_dis.IntDistribution(low=arg[0], high=arg[1], log=True)
+    elif sampler == "choice":
+        return op_dis.CategoricalDistribution(choices=arg)
+    else:
+        raise ValueError(f"Unknown sampler {sampler} for optuna distribution.")
