@@ -478,6 +478,7 @@ class OptunaTuner(Tuner):
 
         self.run()
 
+
 class FlamlTuner(Tuner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
