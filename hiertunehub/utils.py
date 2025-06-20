@@ -42,7 +42,7 @@ def convert_to_hyperopt(param_cfg: Any, prefix: str = '', name: str = 'name', se
         new_config = list()
         for item in param_cfg:
             new_config.append(convert_to_hyperopt(item, prefix, name, sep))
-        return hyperopt.hp.choice(prefix + sep + 'name', new_config)
+        return hyperopt.hp.choice(prefix + sep + name, new_config)
 
     else:
         return param_cfg

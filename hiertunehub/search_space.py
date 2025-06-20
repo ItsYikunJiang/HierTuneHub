@@ -159,13 +159,14 @@ class SearchSpace:
                     name_val = v.pop(self.name)
                     name_key = add_prefix(prefix_k, name_val, self.sep)
                     prefix_sep = prefix_k.split(self.sep)
+                    ss_k = ss
                     for pref in prefix_sep:
-                        if pref not in ss:
+                        if pref not in ss_k:
                             pass
                         else:
-                            ss = ss[pref]
+                            ss_k = ss_k[pref]
                     # Now ss should be a list of dict
-                    for i, s in enumerate(ss):
+                    for i, s in enumerate(ss_k):
                         if s[self.name] == name_val:
                             out[add_prefix(prefix_k, self.name, self.sep)] = i
                             break
@@ -210,16 +211,17 @@ class SearchSpace:
                     name_val = v.get(self.name)
                     name_key = add_prefix(prefix_k, name_val, self.sep)
                     prefix_sep = prefix_k.split(self.sep)
+                    ss_k = ss
                     for pref in prefix_sep:
-                        if pref not in ss:
+                        if pref not in ss_k:
                             pass
                         else:
-                            ss = ss[pref]
+                            ss_k = ss_k[pref]
                     # Now ss should be a list of dict
                     out_d[prefix_k] = op_dis.CategoricalDistribution(
-                        choices=ss
+                        choices=ss_k
                     )
-                    for i, s in enumerate(ss):
+                    for i, s in enumerate(ss_k):
                         if s[self.name] == name_val:
                             out_p[prefix_k] = s
                             break

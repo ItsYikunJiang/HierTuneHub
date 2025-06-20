@@ -175,6 +175,18 @@ class Tuner:
         with open(full_path, 'w') as file:
             json.dump(out, file, indent=4, default=Tuner._dump_default)
 
+    def _deal_with_inf(self, x: Union[int, float]) -> Union[int, float]:
+        if isinstance(x, (int, float)):
+            if x == float('inf') or x == float('-inf'):
+                if self.mode == 'min':
+                    return float('inf')
+                else:
+                    return float('-inf')
+            else:
+                return x
+        else:
+            return x
+
     @staticmethod
     def _dump_default(obj):
         global numpy
@@ -298,6 +310,9 @@ class HyperoptTuner(Tuner):
             }
 
             if result is not None:
+                if isinstance(result, dict):
+                    result[self.metric] = self._deal_with_inf(result[self.metric])
+                    result['loss'] = self._deal_with_inf(result[self.metric])
                 doc['result'] = result
                 doc['state'] = 2  # hyperopt.JOB_STATE_DONE
 
@@ -455,6 +470,7 @@ class OptunaTuner(Tuner):
             params = trial['params']
             result = trial['result']
             if self.metric is not None:
+                result[self.metric] = self._deal_with_inf(result[self.metric])
                 value = result[self.metric] if self.metric in result else result
                 user_attrs = result
             else:
@@ -536,9 +552,12 @@ class FlamlTuner(Tuner):
             points_evaluated.append(trial['params'])
             result = trial['result']
             if isinstance(result, dict):
-                rewards.append(result[self.metric])
+                reward = result[self.metric]
             else:
-                rewards.append(result)
+                reward = result
+
+            reward = self._deal_with_inf(reward)
+            rewards.append(reward)
 
             self._trials.append(
                 Trial(
